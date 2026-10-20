@@ -1,2 +1,2 @@
-"admin    pts/0        2026-10-21 09:58 (192.168.1.20)\n"
-"root     console      2026-10-21 08:00\n"
+"USER       TTY      IDLE      TIME            HOST\n"
+"root       pts/0    00:11     Feb  8 23:05:18 192.168.1.5\n"

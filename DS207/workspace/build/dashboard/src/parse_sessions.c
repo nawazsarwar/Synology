@@ -10,7 +10,7 @@
 
 typedef struct { char pid[16], user[FLD], machine[FLD], ip[FLD], share[FLD]; } sess;
 typedef struct { char pid[16], machine[FLD], share[FLD]; } tree;
-typedef struct { char user[FLD], path[PATHF]; } ofile;
+typedef struct { char pid[16], user[FLD], path[PATHF]; } ofile;
 typedef struct { char user[FLD], ip[FLD]; } sshs;
 
 enum { S_NONE, S_SESS, S_TREE, S_LOCK };
@@ -47,6 +47,11 @@ static void extract_ip(const char *p, char *ip, size_t n) {
   if (*q == '(' && (starts(q, "(ipv4:") || starts(q, "(ipv6:"))) {
     const char *a = q + 6, *e = a;
     if (starts(q, "(ipv6:") && *a == '[') { a++; e = a; while (*e && *e != ']' && *e != ')') e++; }
+    else if (starts(q, "(ipv6:")) {            /* "ipv6:fe80::1:60357" -> strip the trailing ":port" */
+      const char *c = NULL;
+      while (*e && *e != ')') { if (*e == ':') c = e; e++; }
+      if (c && c > a) e = c;
+    }
     else { while (*e && *e != ':' && *e != ')') e++; }
     if (e > a) copyn(ip, n, a, (size_t)(e - a));
   }
@@ -87,9 +92,9 @@ static int parse_smb(const char *s, sess *ss, int *ns, tree *tt, int *nt, ofile 
     if (starts(a, "Samba version")) { state = S_NONE; continue; }
     if (starts(a, "PID") && strstr(line, "Username")) { state = S_SESS; continue; }
     if (starts(a, "Service") && strstr(line, "pid")) { state = S_TREE; continue; }
-    if (starts(a, "Locked") ) { state = S_LOCK; continue; }
+    if (starts(line, "Locked files")) { state = S_LOCK; continue; }
     if (starts(a, "Pid") && strstr(line, "DenyMode")) { state = S_LOCK; continue; }
-    if (starts(a, "No locked")) { state = S_NONE; continue; }
+    if (starts(line, "No locked files")) { state = S_NONE; continue; }
 
     if (state == S_SESS && *ns < MAXN) {
       sess *x = &ss[*ns];
@@ -125,6 +130,7 @@ static int parse_smb(const char *s, sess *ss, int *ns, tree *tt, int *nt, ofile 
       /* a = pid ; user ; deny ; access ; r/w ; oplock ; sharepath ; name... */
       if (!(tn = tok(&p, &tk))) continue;
       copyn(f->user, FLD, tk, tn);
+      copyn(f->pid, sizeof f->pid, a, n);
       for (i = 0; i < 4; i++) if (!tok(&p, &tk)) break;     /* deny, access, rw, oplock */
       if (i < 4) { f->user[0] = '\0'; continue; }
       if (!(tn = tok(&p, &tk))) { f->user[0] = '\0'; continue; }
@@ -152,24 +158,32 @@ static int parse_smb(const char *s, sess *ss, int *ns, tree *tt, int *nt, ofile 
   return 0;
 }
 
+/* BusyBox who (DS207): "USER TTY IDLE Mon D HH:MM:SS [HOST]" with a header line and a bare host.
+ * Also accepts procps "user tty date time (host)". Console/LOGIN rows are not remote sessions: skipped. */
 static void parse_who(const char *s, sshs *w, int *nw) {
   while (s && *s && *nw < MAXN) {
     const char *eol = strchr(s, '\n');
     size_t ll = eol ? (size_t)(eol - s) : strlen(s);
     char line[512];
-    const char *p, *a, *lp, *rp;
-    size_t n;
+    const char *p, *a, *t, *last = NULL, *lp, *rp;
+    size_t n, tn, ln = 0;
+    int ntok = 2; /* user + tty already consumed */
 
     copyn(line, sizeof line, s, ll);
     s += ll + (eol ? 1 : 0);
     p = line;
     n = tok(&p, &a);
     if (!n) continue;
+    if ((n == 4 && !strncmp(a, "USER", 4)) || (n == 5 && !strncmp(a, "LOGIN", 5))) continue;
+    tn = tok(&p, &t);                                   /* tty */
+    if (tn >= 7 && !strncmp(t, "console", 7)) continue;
+    { const char *x; size_t xn; while ((xn = tok(&p, &x))) { last = x; ln = xn; ntok++; } }
     memset(&w[*nw], 0, sizeof w[*nw]);
     copyn(w[*nw].user, FLD, a, n);
     lp = strrchr(line, '(');
     rp = lp ? strchr(lp, ')') : NULL;
     if (lp && rp && rp > lp + 1) copyn(w[*nw].ip, FLD, lp + 1, (size_t)(rp - lp - 1));
+    else if (ntok >= 7 && last) copyn(w[*nw].ip, FLD, last, ln);   /* busybox: 6 fixed fields + host */
     (*nw)++;
   }
 }
@@ -193,6 +207,11 @@ int build_sessions_json(const char *smbstatus_out, const char *who_out, char *ou
           snprintf(ss[i].share, FLD, "%s", tt[j].share); break;
         }
   }
+
+  /* open_files.user is a numeric uid in smbstatus; show the session's username (same pid) when known */
+  for (i = 0; i < nf; i++)
+    for (j = 0; j < ns; j++)
+      if (!strcmp(of[i].pid, ss[j].pid)) { snprintf(of[i].user, FLD, "%s", ss[j].user); break; }
 
   jb_init(&b);
   jb_raw(&b, "{\"smb\":[");
