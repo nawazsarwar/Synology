@@ -180,3 +180,55 @@ time_t __time64(time_t *t)
     if (t) *t = r;
     return r;
 }
+
+
+/* ---- self-contained UTC time conversion ----
+ * Trampolining __gmtime64_r -> gmtime_r cycles on zig's musl (gmtime_r == __gmtime32_r,
+ * which calls __gmtime64_r -> ... -> stack overflow). curl/mbedTLS call gmtime_r for
+ * X.509 certificate validity checks, so provide STRONG non-recursive implementations
+ * here; they override the weak time64 trampolines. UTC only (correct for cert validity;
+ * the box has no timezone database anyway). Algorithm: Howard Hinnant's civil<->days. */
+static void secs_to_tm(long long t, struct tm *tm)
+{
+    long long days = t / 86400, rem = t % 86400;
+    if (rem < 0) { rem += 86400; days--; }
+    tm->tm_hour = (int)(rem / 3600); rem %= 3600;
+    tm->tm_min = (int)(rem / 60); tm->tm_sec = (int)(rem % 60);
+    long long wday = (4 + days) % 7; if (wday < 0) wday += 7;
+    tm->tm_wday = (int)wday;
+    long long z = days + 719468;
+    long long era = (z >= 0 ? z : z - 146096) / 146097;
+    unsigned doe = (unsigned)(z - era * 146097);
+    unsigned yoe = (doe - doe/1460 + doe/36524 - doe/146096) / 365;
+    long long y = (long long)yoe + era * 400;
+    unsigned doy = doe - (365*yoe + yoe/4 - yoe/100);
+    unsigned mp = (5*doy + 2)/153;
+    unsigned d = doy - (153*mp+2)/5 + 1;
+    unsigned m = mp < 10 ? mp+3 : mp-9;
+    y += (m <= 2);
+    tm->tm_year = (int)(y - 1900);
+    tm->tm_mon = (int)m - 1;
+    tm->tm_mday = (int)d;
+    static const int cum[] = {0,31,59,90,120,151,181,212,243,273,304,334};
+    int leap = ((y%4==0 && y%100!=0) || y%400==0);
+    tm->tm_yday = cum[tm->tm_mon] + (tm->tm_mday-1) + ((leap && tm->tm_mon>1) ? 1 : 0);
+    tm->tm_isdst = 0;
+}
+static long long tm_to_secs(const struct tm *tm)
+{
+    int y = tm->tm_year + 1900, m = tm->tm_mon + 1, d = tm->tm_mday;
+    y -= m <= 2;
+    long long era = (y >= 0 ? y : y-399) / 400;
+    unsigned yoe = (unsigned)(y - era*400);
+    unsigned doy = (153*((m > 2) ? m-3 : m+9) + 2)/5 + d-1;
+    unsigned doe = yoe*365 + yoe/4 - yoe/100 + doy;
+    long long days = era*146097 + (long long)doe - 719468;
+    return days*86400 + (long long)tm->tm_hour*3600 + tm->tm_min*60 + tm->tm_sec;
+}
+struct tm *__gmtime64_r(const long long *t, struct tm *tm) { secs_to_tm(*t, tm); return tm; }
+struct tm *__localtime64_r(const long long *t, struct tm *tm) { secs_to_tm(*t, tm); return tm; }
+static struct tm g_tm;
+struct tm *__gmtime64(const long long *t) { secs_to_tm(*t, &g_tm); return &g_tm; }
+struct tm *__localtime64(const long long *t) { secs_to_tm(*t, &g_tm); return &g_tm; }
+long long __timegm_time64(struct tm *tm) { return tm_to_secs(tm); }
+long long __mktime64(struct tm *tm) { return tm_to_secs(tm); }

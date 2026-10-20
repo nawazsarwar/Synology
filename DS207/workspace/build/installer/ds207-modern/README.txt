@@ -16,6 +16,13 @@ IMPORTANT
   - Keep this NAS on your LAN only. Its Linux kernel (2.6.24, 2008) cannot be
     updated and must NOT be exposed to the public internet (no port-forwarding).
 
+MODULES (menu options)
+  1) Modern SMB   - SMB2/SMB3 + Apple Time Machine/Finder (vfs_fruit)
+  2) Modern SSH   - Dropbear (ed25519/curve25519/chacha20) on port 2222, KEY-BASED login.
+                    DSM's own SSH on port 22 is left untouched, so you cannot be locked out.
+  3) Modern curl  - self-contained curl 8.5 + mbedTLS (TLS 1.2); does not touch system curl.
+                    Lets the NAS fetch from modern HTTPS sites (GitHub etc).
+
 HOW TO INSTALL
   1. Copy this whole folder onto the NAS (e.g. into a shared folder via
      File Station or by dragging it onto a mounted share).

@@ -75,6 +75,25 @@ You'll see `modern Samba up (listening on 445)` and a status summary.
 
 ---
 
+## Optional modules (same installer)
+
+From the menu (`sh install.sh`) you can also add:
+
+**2) Modern SSH (Dropbear)** — runs on **port 2222**, key-based login, with modern crypto
+(ed25519 / curve25519 / chacha20). DSM's own SSH on port 22 is left untouched, so you can
+never be locked out. During install you can paste a public key; otherwise add keys to
+`/root/.ssh/authorized_keys`. Connect with:
+```sh
+ssh -p 2222 root@<NAS-IP>
+```
+
+**3) Modern curl + TLS** — a self-contained `curl` (TLS 1.2) at
+`/volume1/@modernsmb/bin/curl`, so the NAS can fetch from modern HTTPS sites (GitHub, etc.)
+that its ancient system curl/wget cannot. It does not touch the system curl. Example:
+```sh
+/volume1/@modernsmb/bin/curl --cacert /volume1/@modernsmb/ssl/cacert.pem https://example.com
+```
+
 ## Managing it later
 
 Run these on the NAS (as root):

@@ -14,7 +14,10 @@ without touching the device's flash (no brick risk).
   the DSM SSH terminal, installs everything on the data volume, auto-generates shares from
   your DSM config (**authenticated users only, no guest**), and auto-reverts to stock if
   anything fails at boot. **Install guide: [`INSTALL.md`](INSTALL.md).**
-- 🔜 Future installer modules: self-contained modern curl + TLS, modern SSH (Dropbear).
+- ✅ **Modern SSH** — Dropbear 2022.83 (ed25519 / curve25519 / chacha20) on port 2222,
+  key-based login, running alongside DSM's own SSH (no lockout risk).
+- ✅ **Modern curl + TLS** — curl 8.5 + mbedTLS 3.6 (TLS 1.2), self-contained; the 2014
+  box can finally fetch from modern HTTPS sites (verified: HTTP 200 from GitHub, cert OK).
 - 🔭 Under evaluation: refreshing the DSM web UI (new lightweight JS front-end over the
   existing C-CGI endpoints).
 

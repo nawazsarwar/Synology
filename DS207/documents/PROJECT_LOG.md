@@ -344,3 +344,57 @@ Finder metadata + Time Machine will work.
 
 Net: the overlay installer is **feature-complete and validated** for modern SMB2/SMB3 with
 Apple interop, strict auth, and safe auto-revert.
+
+---
+
+## Phase 4 Tier B / Trial 4.0 — Modern SSH (Dropbear) + curl/TLS modules (2026-10-20)
+
+Added the two optional installer modules. Both cross-built with the same zig
+`powerpc-linux-musl` + `syscompat.o` approach as Samba, both validated on the real box.
+
+### Modern SSH — Dropbear 2022.83
+- Static PPC build, **ed25519 host key, curve25519-sha256 kex, chacha20-poly1305**.
+- Runs on **port 2222 alongside DSM's stock OpenSSH (port 22)** — stock SSH is never
+  touched, so Dropbear can never cause a lockout.
+- **Two bugs found & fixed:**
+  1. *Garbled clock → rekey loop.* The pre-fix binary hit the musl time64 bug (same as
+     Samba): a bogus `time()` made Dropbear think an hour had passed and fire a rekey
+     (`KEXINIT`, "type 20") mid-auth, breaking every login. Rebuilding with `syscompat.o`
+     (the time64 fix) cured it.
+  2. *Self-daemonize crashes connection children on this box.* Dropbear's double-fork
+     daemonize leaves the per-connection child dying at `kex_exchange_identification`.
+     Fix: run it in **foreground mode (`-F`) backgrounded via full fd-redirect**.
+- **Auth = pubkey only.** DSM authenticates via its own store, so `/etc/shadow`'s root
+  hash ≠ the DSM password (verified: `openssl passwd -1` with the stored salt does not
+  match). Dropbear reads `/etc/shadow`, so password auth can't match the DSM password —
+  pubkey (`/root/.ssh/authorized_keys`) is used, which is the modern/secure choice anyway.
+
+### Modern curl — curl 8.5.0 + mbedTLS 3.6.2 (TLS 1.2)
+- Self-contained static binary; does **not** touch the system's OpenSSL 1.0.0 (so DSM is
+  safe). Ships with a Mozilla CA bundle.
+- **GnuTLS was abandoned for mbedTLS:** curl+GnuTLS SIGSEGV'd in TLS init on the 603e
+  (GnuTLS pulls GMP/nettle whose CPU-tuned asm misbehaves; Samba never exercised those
+  paths). mbedTLS is pure C, no GMP/asm → safe on this CPU.
+- **Three bugs found & fixed (each via core-dump + gdb-multiarch):**
+  1. *`MBEDTLS_ERR_SSL_NO_RNG` (-0x7400).* curl 8.5 configures the RNG *after*
+     `mbedtls_ssl_setup`, but mbedTLS 3.6 requires it *before*. Patched curl to call
+     `mbedtls_ssl_conf_rng` ahead of setup.
+  2. *Infinite recursion in `__gmtime32_r` → stack overflow* during X.509 cert-date
+     validation. The time64 **trampoline** `__gmtime64_r → gmtime_r` cycles on zig's musl
+     (`gmtime_r` == `__gmtime32_r`, which calls `__gmtime64_r` again). Fix: added strong,
+     self-contained UTC `__gmtime64_r`/`__localtime64_r`/`__mktime64`/`__timegm_time64`
+     (Hinnant civil-date algorithm) to `syscompat.c`; they override the weak trampolines.
+  3. *libtool refused a static link* and the GnuTLS attempt needed CURLX objects — the
+     final `curl` is relinked by hand from its objects + `lib/.libs/libcurl.a` + the CURLX
+     objects + mbedTLS, fully static.
+- **Verified on the box:** `curl https://raw.githubusercontent.com/...` → **HTTP 200,
+  cert verified (ssl_verify_result=0)**, ~1 s with the cert cached. The 2014 box can now
+  fetch from modern HTTPS sites (its own curl/wget/OpenSSL 1.0.0 could not).
+
+### Installer integration
+- Menu/CLI gained `ssh` and `curl` modules; `status` shows all three; `uninstall` removes
+  everything (and stops Dropbear) while leaving DSM's SSH on 22 untouched.
+- The boot hook starts Dropbear too (independent of the SMB watchdog).
+- Each module refreshes the control script (`ensure_ctrl`) so new actions are available.
+- Bundle bumped to **v0.2.0**. Stripped sizes: smbd 24 MB, nmbd 15 MB, dropbearmulti
+  0.7 MB, curl 1.8 MB.

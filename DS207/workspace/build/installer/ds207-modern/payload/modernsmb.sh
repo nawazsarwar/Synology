@@ -20,6 +20,14 @@ LOG=$VAR/modernsmb.log
 DISABLE=$ROOT/.disabled           # kill-switch: if present, boot stays on stock
 STOCK_RC=/usr/syno/etc/rc.d/S80samba.sh
 
+# Modern SSH (Dropbear) runs on a SEPARATE port alongside DSM's stock OpenSSH,
+# so a Dropbear problem can never lock you out (stock SSH on 22 stays available).
+SSHDIR=$ROOT/ssh
+DBPORT=2222
+DBKEY=$SSHDIR/hostkey_ed25519
+DBPID=$VAR/dropbear.pid
+DBBIN=$SSHDIR/dropbearmulti
+
 mkdir -p "$VAR/lock" "$VAR/run" "$ROOT/private" 2>/dev/null
 
 log() { echo "$(date '+%Y-%m-%d %H:%M:%S') $*" >>"$LOG" 2>/dev/null; }
@@ -72,6 +80,20 @@ start_modern() {
 	"$SBIN/nmbd" -D -s "$CONF" >>"$LOG" 2>&1
 }
 
+# ---- Modern SSH (Dropbear) : separate port, pubkey auth, never replaces DSM SSH ----
+ssh_running() { ps w 2>/dev/null | grep "$DBBIN dropbear" | grep -qv grep; }
+ssh_start() {
+	[ -x "$DBBIN" ] || return 0                      # SSH module not installed
+	[ -f "$DBKEY" ] || "$DBBIN" dropbearkey -t ed25519 -f "$DBKEY" >>"$LOG" 2>&1
+	ssh_running && { log "dropbear already running"; return 0; }
+	# Foreground mode, backgrounded via full fd-redirect. Dropbear's own daemonize
+	# double-fork crashes the connection children on this box; -F avoids that.
+	"$DBBIN" dropbear -F -E -r "$DBKEY" -p "$DBPORT" >>"$VAR/dropbear.log" 2>&1 </dev/null &
+	sleep 2
+	ssh_running && log "dropbear up on port $DBPORT" || log "dropbear failed to start"
+}
+ssh_stop() { killall dropbearmulti 2>/dev/null; }
+
 case "$1" in
 	start)
 		stop_stock
@@ -113,9 +135,13 @@ case "$1" in
 				touch "$DISABLE"
 				start_stock
 			fi
+			# Modern SSH is independent (separate port, DSM SSH untouched) -> just start it.
+			ssh_start
 		) >>"$LOG" 2>&1 &
 		exit 0
 		;;
+	ssh-start) ssh_start; ssh_running && echo "dropbear up on port $DBPORT (pubkey auth)" || echo "dropbear not running; see $VAR/dropbear.log";;
+	ssh-stop)  ssh_stop; echo "dropbear stopped (DSM SSH on 22 unaffected)";;
 	status)
 		echo "== modern Samba status =="
 		if modern_running; then echo "modern smbd: RUNNING"; else echo "modern smbd: not running"; fi
@@ -123,6 +149,12 @@ case "$1" in
 		if listening_445; then echo "port 445 : LISTENING"; else echo "port 445 : not listening"; fi
 		[ -f "$DISABLE" ] && echo "kill-switch: PRESENT (boot stays on stock)"
 		echo "version  : $($SBIN/smbd -V 2>/dev/null | head -1)"
+		echo "-- modern SSH --"
+		if [ -x "$DBBIN" ]; then
+			if ssh_running; then echo "dropbear : RUNNING on port $DBPORT (pubkey auth)"; else echo "dropbear : installed, not running"; fi
+		else echo "dropbear : not installed"; fi
+		echo "-- modern curl --"
+		if [ -x "$ROOT/bin/curl" ]; then echo "curl     : $($ROOT/bin/curl --version 2>/dev/null | head -1 | cut -c1-60)"; else echo "curl     : not installed"; fi
 		;;
 	enable)
 		rm -f "$DISABLE" && echo "kill-switch cleared; modern Samba will start at next boot"
@@ -131,7 +163,7 @@ case "$1" in
 		touch "$DISABLE" && echo "kill-switch set; boot will stay on stock Samba"
 		;;
 	*)
-		echo "usage: $0 {start|stop|revert|boot|status|enable|disable}"
+		echo "usage: $0 {start|stop|revert|boot|status|enable|disable|ssh-start|ssh-stop}"
 		exit 1
 		;;
 esac

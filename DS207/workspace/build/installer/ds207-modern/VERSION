@@ -1,4 +1,6 @@
 DS207 Modernization Bundle
-version: 0.1.0
+version: 0.2.0
 samba: 4.15.13 (SMB2/SMB3 + vfs_fruit)
+ssh: Dropbear 2022.83 (ed25519, port 2222)
+curl: 8.5.0 + mbedTLS 3.6.2 (TLS 1.2)
 built: 2026-10-20
