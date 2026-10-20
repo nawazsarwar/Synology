@@ -472,7 +472,7 @@ dashboard, installed as installer option 7 / `install.sh ui`, independent of Sam
   a UI crash never touches Samba. Boot: `S99modernsmb` -> `modernsmb.sh boot` -> `ui_start`.
 - Release tarball NOT rebuilt here (user handles releases).
 
-**Battery (on the real DS207, 192.168.1.11, run from a LAN host via `scripts/dashboard_battery.sh`).**
+**Battery (on the real DS207, 192.168.1.11).** `scripts/dashboard_battery.sh` (asserting, non-zero exit on failure; needs `DASH_PW`) automates only the HTTP-level checks: auth 401s, traversal, junk flood, concurrent clients, snapshot integrity. The privilege, resource, SMART-cadence, kill-9-no-Samba-revert, DSM/SMB/SSH/curl regression and uninstall/reinstall checks were run BY HAND over SSH.
 
 | Test | Result |
 |---|---|
