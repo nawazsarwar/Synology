@@ -45,3 +45,20 @@ describe('ServicesTile', () => {
     expect(w.text()).toContain('—')
   })
 })
+
+import WanTile from './WanTile.vue'
+describe('WanTile', () => {
+  it('shows calm state when no public connections', () => {
+    const w = mount(WanTile, { props: { wan: { public_conns: [], public_count: 0, lan_count: 2 } } })
+    expect(w.text()).toContain('No connections from outside')
+    expect(w.text()).toContain('LAN: 2')
+  })
+  it('lists public peers', () => {
+    const w = mount(WanTile, { props: { wan: { public_conns: [{ local: '192.168.1.11:50000', remote: '8.8.8.8:443' }], public_count: 1, lan_count: 0 } } })
+    expect(w.text()).toContain('8.8.8.8:443')
+    expect(w.find('.alert').exists()).toBe(true)
+  })
+  it('tolerates missing data', () => {
+    expect(() => mount(WanTile, { props: {} })).not.toThrow()
+  })
+})

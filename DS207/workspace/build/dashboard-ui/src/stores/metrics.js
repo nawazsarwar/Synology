@@ -18,7 +18,7 @@ export function cpuBusyPct(prev, cur) {
 const FAST_MS = 2000
 const SERVICES_MS = 60000
 const DISKS_MS = 300000
-const FAST = ['system', 'net', 'diskio', 'storage', 'sessions']
+const FAST = ['system', 'net', 'diskio', 'storage', 'sessions', 'wan']
 
 export const useMetricsStore = defineStore('metrics', {
   state: () => ({
@@ -29,6 +29,7 @@ export const useMetricsStore = defineStore('metrics', {
     disks: [],
     services: [],
     sessions: { smb: [], open_files: [], ssh: [] },
+    wan: { public_conns: [], public_count: 0, lan_count: 0 },
     cpuBusy: 0,
     netRates: [],
     diskRates: [],
@@ -36,6 +37,7 @@ export const useMetricsStore = defineStore('metrics', {
   }),
   getters: {
     memUsedKb: (s) => (s.system ? s.system.mem_total - s.system.mem_free - s.system.mem_cached : 0),
+    wanPublicCount: (s) => (s.wan && s.wan.public_count) || 0,
     load: (s) => (s.system ? [s.system.load1, s.system.load5, s.system.load15] : [0, 0, 0])
   },
   actions: {

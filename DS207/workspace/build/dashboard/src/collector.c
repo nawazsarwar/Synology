@@ -6,6 +6,7 @@
 #include "collector.h"
 #include "parse_system.h"
 #include "parse_net.h"
+#include "parse_wan.h"
 #include "parse_diskio.h"
 #include "parse_storage.h"
 #include "parse_smart.h"
@@ -144,6 +145,12 @@ static int snap_simple(const char *dir, const char *name, const char *rel, int k
   free(a);
   return n < 0 || write_atomic(dir, name, out, (size_t)n);
 }
+static int snap_wan(const char *dir, char *out) {
+  char *a = read_proc("net/tcp");
+  int n = build_wan_json(nz(a), out, MAXOUT);
+  free(a);
+  return n < 0 || write_atomic(dir, "wan", out, (size_t)n);
+}
 static int snap_storage(const char *dir, char *out) {
   char *df = run_tool(TOOL_DF), *md = read_proc("mdstat");
   int n = build_storage_json(nz(df), nz(md), out, MAXOUT);
@@ -193,7 +200,8 @@ static int snap_services(const char *dir, char *out) {
 
 static int do_light(const char *d, char *o) {
   return snap_system(d, o) + snap_simple(d, "net", "net/dev", 0, o)
-       + snap_simple(d, "diskio", "diskstats", 1, o) + snap_storage(d, o);
+       + snap_simple(d, "diskio", "diskstats", 1, o) + snap_storage(d, o)
+       + snap_wan(d, o);
 }
 
 int collect_once(const char *statedir) {

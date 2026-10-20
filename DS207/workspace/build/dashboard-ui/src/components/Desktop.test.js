@@ -9,10 +9,10 @@ import { useMetricsStore } from '../stores/metrics.js'
 beforeEach(() => { setActivePinia(createPinia()); vi.unstubAllGlobals() })
 
 describe('Desktop', () => {
-  it('renders all 10 tiles with empty store and no localStorage', () => {
+  it('renders all 11 tiles with empty store and no localStorage', () => {
     vi.stubGlobal('localStorage', { getItem() { throw new Error('x') }, setItem() { throw new Error('x') } })
     const w = mount(Desktop)
-    expect(w.findAll('.win').length).toBe(10)
+    expect(w.findAll('.win').length).toBe(11)
   })
   it('flags degraded RAID in the taskbar', () => {
     const s = useMetricsStore()

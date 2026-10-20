@@ -12,6 +12,7 @@ import SmartTile from './tiles/SmartTile.vue'
 import SessionsTile from './tiles/SessionsTile.vue'
 import FilesTile from './tiles/FilesTile.vue'
 import ServicesTile from './tiles/ServicesTile.vue'
+import WanTile from './tiles/WanTile.vue'
 
 defineEmits(['logout'])
 const m = useMetricsStore()
@@ -22,7 +23,6 @@ const narrow = computed(() => vw.value < 760)
 const top = ref(1)
 const z = reactive({})
 
-// WanTile (Task 17) mounts here: add { id:'wan', ... } and its component.
 const tiles = computed(() => [
   { id: 'cpu', title: 'CPU', comp: CpuTile, props: { busy: m.system ? m.cpuBusy : NaN } },
   { id: 'mem', title: 'Memory', comp: MemTile, props: { system: m.system } },
@@ -33,7 +33,8 @@ const tiles = computed(() => [
   { id: 'smart', title: 'Disk health (SMART)', comp: SmartTile, props: { disks: m.disks } },
   { id: 'services', title: 'Services', comp: ServicesTile, props: { services: m.services } },
   { id: 'sessions', title: 'Sessions', comp: SessionsTile, props: { sessions: m.sessions } },
-  { id: 'files', title: 'Open files', comp: FilesTile, props: { files: m.sessions.open_files || [] } }
+  { id: 'files', title: 'Open files', comp: FilesTile, props: { files: m.sessions.open_files || [] } },
+  { id: 'wan', title: 'Beyond LAN', comp: WanTile, props: { wan: m.wan } }
 ])
 const degraded = computed(() => (m.storage.arrays || []).some((a) => a.state === 'degraded'))
 const offline = computed(() => !!m.error)
@@ -98,7 +99,6 @@ function style(id) {
         <div class="body"><component :is="t.comp" v-bind="t.props" /></div>
         <div v-if="!narrow" class="grip" @pointerdown.stop="start($event, t.id, 'resize')"></div>
       </section>
-      <!-- slot: WanTile (Task 17) -->
       <slot name="extra" :layout="layout" />
     </div>
   </div>

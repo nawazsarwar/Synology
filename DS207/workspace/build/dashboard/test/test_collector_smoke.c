@@ -32,7 +32,7 @@ static char *fake_tool(tool_id id) {
 
 TEST(collect_once_writes_all_snapshots_atomically) {
   char tmpl[] = "/tmp/collXXXXXX", proc[300], state[300], p[400], tmp[420];
-  const char *names[] = { "system", "net", "diskio", "storage", "disks", "services", "sessions" };
+  const char *names[] = { "system", "net", "diskio", "storage", "disks", "services", "sessions", "wan" };
   char *s; size_t i;
   ASSERT(mkdtemp(tmpl) != NULL);
   snprintf(proc, sizeof proc, "%s/proc", tmpl);
@@ -46,6 +46,11 @@ TEST(collect_once_writes_all_snapshots_atomically) {
   snprintf(p, sizeof p, "%s/mdstat", proc);   copy("test/fixtures/proc_mdstat.txt", p);
   snprintf(p, sizeof p, "%s/net", proc); mkdir(p, 0700);
   snprintf(p, sizeof p, "%s/net/dev", proc);  copy("test/fixtures/proc_net_dev.txt", p);
+  snprintf(p, sizeof p, "%s/net/tcp", proc);
+  { FILE *w = fopen(p, "wb");
+    fputs("  sl  local_address rem_address   st\n"
+          "  11: C0A8010B:C350 08080808:01BB 01 0:0 0:0 0 0 0 1\n", w);
+    fclose(w); }
   setenv("COLLECTOR_PROC_DIR", proc, 1);
   collector_set_provider(fake_tool);
 
@@ -63,7 +68,7 @@ TEST(collect_once_writes_all_snapshots_atomically) {
   snprintf(p, sizeof p, "%s/services.json", state);
   s = slurp(p); ASSERT(s && strstr(s, "\"smbd\"") && strstr(s, "Version 3.6.25")); free(s);
   snprintf(p, sizeof p, "%s/wan.json", state);
-  ASSERT(access(p, F_OK) != 0);       /* wan is a later task */
+  s = slurp(p); ASSERT(s && strstr(s, "\"public_count\":1") && strstr(s, "8.8.8.8:443")); free(s);
   collector_set_provider(NULL);
 }
 
