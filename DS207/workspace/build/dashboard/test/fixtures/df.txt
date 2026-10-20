@@ -1,0 +1,4 @@
+"Filesystem           1K-blocks      Used Available Use% Mounted on\n"
+"/dev/md0               2451064    670204   1678460  29% /\n"
+"/tmp                     30728       148     30580   0% /tmp\n"
+"/dev/vg1000/lv       241476032    456564 240917068   0% /volume1\n"
