@@ -1,0 +1,6 @@
+"Device Model:     TESTDISK 500GB\n"
+"Serial Number:    TEST123\n"
+"SMART overall-health self-assessment test result: PASSED\n"
+"ID# ATTRIBUTE_NAME          FLAG     VALUE WORST THRESH TYPE      UPDATED  WHEN_FAILED RAW_VALUE\n"
+"  9 Power_On_Hours          0x0032   097   097   000    Old_age   Always       -       13109\n"
+"194 Temperature_Celsius     0x0022   110   090   000    Old_age   Always       -       38 (Min/Max 20/55)\n"
