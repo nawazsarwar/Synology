@@ -10,8 +10,13 @@ without touching the device's flash (no brick risk).
 - ✅ **Samba 4.15.13 (SMB2/SMB3)** cross-compiled for PowerPC and **verified running**
   on the real DS207 at ~5 MB RAM. Byte-perfect round-trips confirmed from Linux
   `smbclient` and a real Ubuntu GNOME desktop.
-- 🔜 Packaging it all into a safe, reversible **script/overlay installer** (menu: Samba,
-  modern curl+TLS, modern SSH, uninstall).
+- ✅ **Overlay installer built & validated** — a safe, reversible installer that runs from
+  the DSM SSH terminal, installs everything on the data volume, auto-generates shares from
+  your DSM config (**authenticated users only, no guest**), and auto-reverts to stock if
+  anything fails at boot. **Install guide: [`INSTALL.md`](INSTALL.md).**
+- 🔜 Future installer modules: self-contained modern curl + TLS, modern SSH (Dropbear).
+- 🔭 Under evaluation: refreshing the DSM web UI (new lightweight JS front-end over the
+  existing C-CGI endpoints).
 
 The "64 MB is too small" assumption turned out to be a myth — the real blockers were a
 stack of kernel-ABI / codegen / crypto-version bugs, each diagnosed and fixed. See
@@ -34,15 +39,18 @@ public internet** (no port-forwarding). On a trusted home/office LAN it is fine.
 
 | Path | What |
 |---|---|
+| `INSTALL.md` | End-user install guide for the overlay installer |
+| `DS207/workspace/build/installer/ds207-modern/` | **The installer** — `install.sh`, `modernsmb.sh`, boot hook, `smb.conf.global` |
 | `DS207/documents/` | Project log, forensic audit, modernization strategy & decisions |
 | `DS207/workspace/build/scripts/` | Cross-compilation build scripts + the kernel-ABI compatibility shim (`syscompat.c`) |
+| `DS207/workspace/build/scripts/probes/` | Tiny throwaway C programs from the debugging (for the record) |
 | `DS207/workspace/build/configs/` | Tuned `smb.conf` and Avahi service configs |
-| `DS207/workspace/build/ds207_patch/` | The installer script |
 | `CLAUDE.md` | Engineering guardrails for the project |
 
-**Not** included (and never will be): Synology's proprietary firmware (`.pat` files),
-extracted root filesystems, cross-toolchains, and build binaries. Those are large and
-not ours to redistribute — see `.gitignore`.
+**Not** included (and never will be): Synology's proprietary firmware (`.pat` files, kept
+locally under `original_pat_files/`), extracted root filesystems, cross-toolchains, and the
+compiled `smbd`/`nmbd` binaries (those ship via **GitHub Releases**). All large/proprietary
+paths are git-ignored — see `.gitignore`.
 
 ## How it was built (summary)
 

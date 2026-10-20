@@ -7,7 +7,9 @@
    server string = DS207
    netbios name = DS207
    security = user
-   map to guest = Bad User
+   # STRICT: no guest access anywhere. Unknown/invalid logins are rejected,
+   # never silently mapped to a guest account.
+   map to guest = Never
 
    # --- Protocol: modern only, no SMB1 ---
    server min protocol = SMB2_02

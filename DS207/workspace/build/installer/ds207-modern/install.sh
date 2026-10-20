@@ -43,7 +43,8 @@ gen_shares() {
 			printf "   comment = %s (modern SMB)\n", name
 			printf "   path = %s\n", path
 			printf "   read only = %s\n", (ro=="yes"?"yes":"no")
-			if (guest != "") printf "   guest ok = %s\n", guest
+			# STRICT: never allow guest access; authenticated users only.
+			printf "   guest ok = no\n"
 			if (valid != "") printf "   valid users = %s\n", valid
 			if (invalid != "") printf "   invalid users = %s\n", invalid
 		}

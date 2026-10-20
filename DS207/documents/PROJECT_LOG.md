@@ -310,3 +310,37 @@ denied by the shares' own DSM ACLs.
 **Still to come (future installer modules):** self-contained modern curl + TLS, and modern
 SSH (Dropbear). The installer menu is structured to add them. `checksum.syno` field4/field5
 remains parked (only needed if a `.pat` is ever revisited).
+
+---
+
+## Trial 3.1 — Strict no-guest + aggressive & regressive test pass (2026-10-20)
+
+Hardened the installer to **strict, authenticated-only** access (`map to guest = Never`;
+every generated share gets `guest ok = no`) and ran a full test matrix on the real box.
+
+**Aggressive tests (clean Debian `smbclient`, SMB3):**
+| Test | Result |
+|---|---|
+| Guest/anonymous access | DENIED (as intended) |
+| Wrong password | DENIED |
+| Valid admin login | OK |
+| SMB1 (NT1) negotiation | REFUSED |
+| 30 MB random file put→get | byte-identical (md5), ~3 MB/s on the 266 MHz CPU |
+| 200 small files write + list | all 200 present |
+| Special-char names (space, Unicode `café/名前`, `#`/`&`) | OK |
+| 4 concurrent upload sessions | all completed |
+
+**Regressive tests (full lifecycle, real box):** status, **watchdog auto-revert** (hid the
+binary → stock restored + kill-switch + 445 up), **normal boot** (modern healthy), **revert**
+command, **reinstall** — all PASS.
+
+**macOS interop (vfs_fruit) — found & fixed a gap:** alternate data streams (how
+`vfs_fruit`/`streams_xattr` store Apple metadata and drive Time Machine) initially failed
+because `/volume1` is ext3 **without the `user_xattr` mount option** (the filesystem *does*
+carry the `ext_attr` feature). Fix: the control script now **auto-enables `user_xattr`**
+(`mount -o remount,user_xattr`) on every start/boot (non-destructive, re-applied each boot
+since DSM mounts without it). After that, stream write/list/read round-trips cleanly →
+Finder metadata + Time Machine will work.
+
+Net: the overlay installer is **feature-complete and validated** for modern SMB2/SMB3 with
+Apple interop, strict auth, and safe auto-revert.

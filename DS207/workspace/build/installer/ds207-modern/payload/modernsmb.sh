@@ -24,6 +24,19 @@ mkdir -p "$VAR/lock" "$VAR/run" "$ROOT/private" 2>/dev/null
 
 log() { echo "$(date '+%Y-%m-%d %H:%M:%S') $*" >>"$LOG" 2>/dev/null; }
 
+# vfs_fruit / streams_xattr (macOS Finder metadata + Time Machine) need the data
+# volume mounted with user_xattr. DSM mounts without it, so we enable it (the ext3
+# filesystem already carries the ext_attr feature; this is non-destructive and only
+# lasts until reboot, which is why start_modern re-applies it every time).
+ensure_xattr() {
+	for vol in /volume1 /volume2 /volume3 /volume4; do
+		[ -d "$vol" ] || continue
+		grep -q " $vol ext" /proc/mounts || continue
+		grep -qE " $vol [^ ]+ [^ ]*user_xattr" /proc/mounts && continue
+		mount -o remount,user_xattr "$vol" 2>>"$LOG" && log "enabled user_xattr on $vol"
+	done
+}
+
 listening_445() { netstat -ln 2>/dev/null | grep -qE '[:.]445 '; }
 
 stock_running() { ps w 2>/dev/null | grep -E '/usr/syno/sbin/smbd' | grep -qv grep; }
@@ -53,6 +66,7 @@ stop_modern() {
 }
 
 start_modern() {
+	ensure_xattr
 	log "starting modern smbd/nmbd"
 	"$SBIN/smbd" -D -s "$CONF" >>"$LOG" 2>&1
 	"$SBIN/nmbd" -D -s "$CONF" >>"$LOG" 2>&1
