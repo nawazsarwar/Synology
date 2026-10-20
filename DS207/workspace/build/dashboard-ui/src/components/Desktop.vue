@@ -89,6 +89,7 @@ function style(id) {
       <span v-if="offline" class="pill warn" :title="m.error">connection issue</span>
       <span class="spacer"></span>
       <button v-if="!narrow" @click="reset">Reset layout</button>
+      <button class="logout" @click="$emit('logout')">Log out</button>
     </header>
     <div ref="desk" :class="['desktop', { narrow }]" :style="narrow ? {} : { height: height + 'px' }">
       <section v-for="t in tiles" :key="t.id" :class="['win', t.id, { alarm: t.id === 'storage' && degraded }]" :style="style(t.id)" @pointerdown="raise(t.id)">
