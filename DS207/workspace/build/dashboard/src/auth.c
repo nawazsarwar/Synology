@@ -154,6 +154,13 @@ int auth_check_token(const char *tok) {
   return ok;
 }
 
+void auth_drop_token(const char *tok) {
+  int i;
+  if (!tok || strlen(tok) != AUTH_TOKEN_HEX) return;
+  for (i = 0; i < AUTH_MAX_SESSIONS; i++)
+    if (sess[i].used && ct_eq(sess[i].tok, tok, AUTH_TOKEN_HEX)) memset(&sess[i], 0, sizeof sess[i]);
+}
+
 int auth_cookie_sid(const char *cookie, char *out, size_t n) {
   const char *p = cookie;
   if (!cookie || !out || n == 0) return -1;

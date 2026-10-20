@@ -222,6 +222,12 @@ int ui_handle(const char *base, const http_req *q, const char *body, size_t blen
       return send_resp(fd, 200, "OK", "text/html; charset=utf-8", NULL, LOGIN_HTML);
     return send_resp(fd, 302, "Found", "text/plain", "Location: /\r\n", "Found");
   }
+  if (strcmp(q->dpath, "/api/logout") == 0 && strcmp(q->method, "POST") == 0) {
+    char sid[AUTH_TOKEN_HEX + 8];
+    if (auth_cookie_sid(q->cookie, sid, sizeof sid) == 0) auth_drop_token(sid);
+    return send_resp(fd, 200, "OK", "application/json",
+                     "Set-Cookie: sid=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0\r\n", "{\"ok\":true}");
+  }
   return ui_serve(base, q, fd);
 }
 

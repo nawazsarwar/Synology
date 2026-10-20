@@ -80,6 +80,11 @@ describe('auth gate', () => {
     expect(store.stopPolling).toHaveBeenCalled()
     expect(w.find('form.login').exists()).toBe(true)
   })
+  it('probe that rejects (timeout/network) falls back to Login, not blank', async () => {
+    client.getJSON.mockRejectedValue(new DOMException('aborted', 'AbortError'))
+    const w = await mountApp()
+    expect(w.find('form.login').exists()).toBe(true)
+  })
   it('existing valid session skips Login', async () => {
     client.getJSON.mockResolvedValue({ ok: 1 })
     const w = await mountApp()

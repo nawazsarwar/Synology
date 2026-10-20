@@ -13,6 +13,7 @@ import SessionsTile from './tiles/SessionsTile.vue'
 import FilesTile from './tiles/FilesTile.vue'
 import ServicesTile from './tiles/ServicesTile.vue'
 
+defineEmits(['logout'])
 const m = useMetricsStore()
 const layout = reactive(loadLayout())
 const desk = ref(null)

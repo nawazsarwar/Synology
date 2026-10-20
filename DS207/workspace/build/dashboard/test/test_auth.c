@@ -118,6 +118,30 @@ TEST(login_flow) { char b[4096], raw[600], *sid, *e; int st;
   ASSERT(run("GET /api/login HTTP/1.0\r\n\r\n", NULL, b, sizeof b) == 401);
 }
 
+TEST(drop_token) { char *a, *b; auth_clear_sessions(); a = auth_new_token(); b = auth_new_token();
+  ASSERT(auth_check_token(a)); ASSERT(auth_check_token(b));
+  auth_drop_token(a);
+  ASSERT(!auth_check_token(a)); ASSERT(auth_check_token(b));
+  auth_drop_token(a); auth_drop_token(NULL); auth_drop_token("short");   /* no-ops */
+  ASSERT(auth_check_token(b));
+  free(a); free(b);
+}
+
+TEST(logout_flow) { char b[4096], raw[600]; char *tok = auth_new_token(); int st;
+  setup();
+  snprintf(raw, sizeof raw, "POST /api/logout HTTP/1.0\r\nCookie: sid=%s\r\n\r\n", tok);
+  st = run(raw, NULL, b, sizeof b);
+  ASSERT(st == 200); ASSERT(strstr(b, "Max-Age=0")); ASSERT(strstr(b, "Set-Cookie: sid=;"));
+  ASSERT(!auth_check_token(tok));
+  /* session gone: same cookie now 401 on logout and on data */
+  ASSERT(run(raw, NULL, b, sizeof b) == 401);
+  snprintf(raw, sizeof raw, "GET /api/system HTTP/1.0\r\nCookie: sid=%s\r\n\r\n", tok);
+  ASSERT(run(raw, NULL, b, sizeof b) == 401);
+  /* unauthenticated logout is refused */
+  ASSERT(run("POST /api/logout HTTP/1.0\r\n\r\n", NULL, b, sizeof b) == 401);
+  free(tok);
+}
+
 TEST(login_body_cap) { char b[4096]; char *big = malloc(20000); int st; http_req q; FILE *t;
   setup();
   memset(big, 'a', 19999); big[19999] = 0;

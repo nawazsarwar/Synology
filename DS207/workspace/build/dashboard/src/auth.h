@@ -30,6 +30,8 @@ int auth_make_hash(const char *password, const char *salt, char *out, size_t n);
 char *auth_new_token(void);
 /* 1 if tok is a live (unexpired) session token. Constant-time over the table. */
 int auth_check_token(const char *tok);
+/* Invalidate one session token (logout). No-op if absent/malformed. */
+void auth_drop_token(const char *tok);
 /* Current time as used for expiry/throttling (includes test offset). */
 time_t auth_now(void);
 /* Test hook: shift the clock used for expiry by secs. */
