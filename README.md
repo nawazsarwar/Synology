@@ -68,6 +68,8 @@ This project exists to give those boxes another breath.
   key-based login, running alongside DSM's own SSH (no lockout risk).
 - ✅ **Modern curl + TLS** — curl 8.5 + mbedTLS 3.6 (TLS 1.2), self-contained; the 2014
   box can finally fetch from modern HTTPS sites (verified: HTTP 200 from GitHub, cert OK).
+- ✅ **Modern monitoring dashboard** — password-protected, read-only, LAN-only web UI on port 8181
+  (CPU/RAM/storage/SMART/network/SMB sessions/WAN), separate from Samba; install option 7.
 - 🔭 Under evaluation: refreshing the DSM web UI (new lightweight JS front-end over the
   existing C-CGI endpoints).
 

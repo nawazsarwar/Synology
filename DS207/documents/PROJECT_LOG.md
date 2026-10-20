@@ -455,3 +455,51 @@ existing SMB and DSM services untouched.
 
 **Verdict:** all three modules are stable under abuse and coexist cleanly with stock DSM
 services. No hang, crash, leak, or regression observed.
+
+---
+
+## Trial 5 — Monitoring dashboard (2026-10-21)
+
+**What was built (bundle v0.3.0 adds the dashboard).** A read-only, LAN-only monitoring
+dashboard, installed as installer option 7 / `install.sh ui`, independent of Samba:
+- `collector` (root, no socket) — loops every 2 s, parses `/proc` + whitelisted tools
+  (smartctl, mdstat, smbstatus, netstat) and writes `ui/state/*.json` with atomic rename.
+  SMART (`disks.json`) is refreshed on a 5-minute cadence only.
+- `uiserver` (drops to `nobody`, port 8181) — static files + `/api/*` snapshots, password
+  login (salted SHA-256, cookie session, rate-limited), path-traversal-safe file serving.
+- Vue 3 SPA (`dashboard-ui`, built to `dashboard/www`) — draggable tiles incl. WAN tile.
+- Both daemons are static PPC (musl, zig cc, qemu-verified on `-r 2.6.24`). No watchdog:
+  a UI crash never touches Samba. Boot: `S99modernsmb` -> `modernsmb.sh boot` -> `ui_start`.
+- Release tarball NOT rebuilt here (user handles releases).
+
+**Battery (on the real DS207, 192.168.1.11, run from a LAN host via `scripts/dashboard_battery.sh`).**
+
+| Test | Result |
+|---|---|
+| Unauth `GET /api/system`, `/api/wan` | PASS (401, 401) |
+| Traversal `/..%2f..%2fetc/passwd`, `/../../etc/shadow`, `/%2e%2e/...`, `/assets/../../../etc/passwd` (unauth) | PASS (302 to login, no file content) |
+| Same traversals, authed | PASS (404, no `root:` lines) |
+| 6x random-byte flood + 20 KB junk request line to :8181 | PASS (uiserver survived; `/` 200; authed `/api/system` 200) |
+| 4 concurrent authed clients x 5 requests | PASS (all 200) |
+| Snapshot-during-write, 60 fetches while collector loops | PASS (0 truncated/invalid) |
+| Bogus `/api/doesnotexist` | PASS (404; SPA error is per-poll and clears on next success, no permanent offline) |
+| Privilege | PASS (`uiserver` = nobody, `collector` = root; only uiserver listens on 8181, collector has no socket) |
+| Resource, 4 min polling @ 2 s | PASS (collector RSS 140-144 kB, uiserver 152 kB; load avg 0.03-0.22; CPU mostly idle; free RAM ~5-6 MB + 20 MB cache, unchanged) |
+| SMART cache cadence | PASS (`disks.json` rewritten 03:13 -> 03:18, i.e. 5 min; no smartctl seen running between) |
+| `/api/wan` | PASS (JSON; collector now writes `wan.json`; no longer 404) |
+| `layout.js` DEFAULTS has `wan` | PASS |
+| DSM :5000 and :80 | PASS (302) |
+| SMB (445, 4 shares via `smbutil`), Dropbear 2222, modern curl HTTPS | PASS |
+| No `/volume1/*.core` | PASS |
+| `kill -9 uiserver` | PASS (modern smbd untouched, 445 listening, `.disabled` absent; `ui-start` brought UI back, `/` 200) |
+| `install.sh uninstall` | PASS (`@modernsmb` + boot hook removed, stock smbd/nmbd running, DSM :5000 fine) |
+| Full reinstall (SMB + curl + ui + ssh), dashboard password re-set | PASS (all RUNNING; battery re-run clean) |
+| Leftover `/volume1/@bundle` test bundle | Deleted |
+
+**Notes / lessons.**
+- `uninstall` kills Dropbear (including the SSH session on :2222 that ran it) and the reinstall
+  generates a NEW Dropbear host key. Run uninstall/reinstall from DSM's own SSH on :22 (or
+  expect to reconnect and clear the stale `known_hosts` entry for `[NAS]:2222`).
+- Boot persistence was verified by inspection (S99modernsmb -> `modernsmb.sh boot` ->
+  backgrounded `ui_start`, no watchdog) and by running `ui-start`; the box was NOT
+  power-cycled. A real power-cycle is the recommended final user check.

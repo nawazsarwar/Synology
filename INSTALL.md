@@ -117,6 +117,14 @@ that its ancient system curl/wget cannot. It does not touch the system curl. Exa
 /volume1/@modernsmb/bin/curl --cacert /volume1/@modernsmb/ssl/cacert.pem https://example.com
 ```
 
+**7) Modern monitoring dashboard** — a small web dashboard (CPU, memory, load, storage, disk
+health, network, services, SMB sessions, WAN connections) served by the NAS itself. Pick it
+from the menu or run `sh install.sh ui`. The installer asks you to **set a dashboard
+password**; then open `http://<NAS-IP>:8181` and log in. It is **LAN-only** (plain HTTP, do not
+port-forward it) and **read-only** (it only shows status, never changes anything). It runs
+separately from Samba: stopping or crashing it never affects your shares
+(`modernsmb.sh ui-stop` / `ui-start`).
+
 ## Managing it later
 
 Run these on the NAS (as root):
