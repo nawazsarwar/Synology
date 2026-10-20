@@ -179,9 +179,9 @@ install_ui() {
 	cp -R "$PAYLOAD/ui/www/." "$UI/www/"
 	if [ -t 0 ]; then
 		while :; do
-			printf "Set dashboard password (min 8 chars): "; stty -echo 2>/dev/null; read pw1; stty echo 2>/dev/null; echo ""
+			printf "Set dashboard password (min 8 chars): "; trap 'stty echo 2>/dev/null' INT TERM EXIT; stty -echo 2>/dev/null; read -r pw1; stty echo 2>/dev/null; trap - INT TERM EXIT; echo ""
 			[ "${#pw1}" -ge 8 ] || { say "too short."; continue; }
-			printf "Repeat password: "; stty -echo 2>/dev/null; read pw2; stty echo 2>/dev/null; echo ""
+			printf "Repeat password: "; stty -echo 2>/dev/null; read -r pw2; stty echo 2>/dev/null; trap - INT TERM EXIT; echo ""
 			[ "$pw1" = "$pw2" ] && break
 			say "passwords differ."
 		done

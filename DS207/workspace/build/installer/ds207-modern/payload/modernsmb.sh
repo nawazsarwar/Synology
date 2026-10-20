@@ -112,14 +112,32 @@ ui_start() {
 	if ! ui_collector_running && [ -x "$UIDIR/bin/collector" ]; then
 		COLLECTOR_UI_DIR="$ROOT" COLLECTOR_PROC_DIR=/proc \
 			"$UIDIR/bin/collector" --loop "$UIDIR/state" >>"$VAR/ui-collector.log" 2>&1 </dev/null &
+		echo $! >"$VAR/ui-collector.pid"
 	fi
 	if ! ui_server_running; then
 		"$UIDIR/bin/uiserver" --root "$UIDIR" --port "$UIPORT" --user nobody >>"$VAR/ui-server.log" 2>&1 </dev/null &
+		echo $! >"$VAR/ui-server.pid"
 	fi
 	sleep 2
 	ui_server_running && log "dashboard up on :$UIPORT" || log "dashboard failed to start"
 }
-ui_stop() { killall uiserver collector 2>/dev/null; }
+# Kill only THIS UI's processes: pidfile pid (verified against the command line to guard
+# pid reuse), else any process whose command line is under $UIDIR/bin/.
+ui_kill_one() {  # $1=pidfile $2=binary path
+	pf=$1; bin=$2; pid=
+	[ -f "$pf" ] && pid=$(cat "$pf" 2>/dev/null)
+	if [ -n "$pid" ] && ps w 2>/dev/null | awk -v p="$pid" -v b="$bin" '$1==p && index($0,b){f=1} END{exit !f}'; then
+		kill "$pid" 2>/dev/null
+	else
+		for q in $(ps w 2>/dev/null | grep "$bin" | grep -v grep | awk '{print $1}'); do kill "$q" 2>/dev/null; done
+	fi
+	rm -f "$pf"
+}
+ui_stop() {
+	ui_kill_one "$VAR/ui-server.pid" "$UIDIR/bin/uiserver"
+	ui_kill_one "$VAR/ui-collector.pid" "$UIDIR/bin/collector"
+	sleep 1
+}
 
 case "$1" in
 	start)
