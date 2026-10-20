@@ -88,7 +88,8 @@ ssh_start() {
 	ssh_running && { log "dropbear already running"; return 0; }
 	# Foreground mode, backgrounded via full fd-redirect. Dropbear's own daemonize
 	# double-fork crashes the connection children on this box; -F avoids that.
-	"$DBBIN" dropbear -F -E -r "$DBKEY" -p "$DBPORT" >>"$VAR/dropbear.log" 2>&1 </dev/null &
+	# -s: disable password logins (pubkey only); -g: disable root password login too.
+	"$DBBIN" dropbear -F -E -s -g -r "$DBKEY" -p "$DBPORT" >>"$VAR/dropbear.log" 2>&1 </dev/null &
 	sleep 2
 	ssh_running && log "dropbear up on port $DBPORT" || log "dropbear failed to start"
 }

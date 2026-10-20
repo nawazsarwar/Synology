@@ -398,3 +398,60 @@ Added the two optional installer modules. Both cross-built with the same zig
 - Each module refreshes the control script (`ensure_ctrl`) so new actions are available.
 - Bundle bumped to **v0.2.0**. Stripped sizes: smbd 24 MB, nmbd 15 MB, dropbearmulti
   0.7 MB, curl 1.8 MB.
+
+---
+
+## Trial 4.1 — Aggressive + regressive test battery (SSH + curl modules)
+
+Run against the live box (2026-10-20) after all three modules were installed. Goal: prove
+the new SSH/curl modules cannot hang, crash, or leak on the NAS, and that they left the
+existing SMB and DSM services untouched.
+
+### SSH (Dropbear, port 2222)
+| Test | Result |
+|---|---|
+| ed25519 host key + curve25519 KEX + chacha20-poly1305 cipher negotiated | PASS |
+| Pubkey login (my ed25519 key) | PASS |
+| Password auth rejected | PASS |
+| Absent/wrong key rejected | PASS |
+| 5× random-junk payloads to :2222, daemon survives + still accepts valid login | PASS |
+| 4 concurrent logins | PASS |
+| 1 MB output streamed through a channel | PASS |
+| Session processes reap after disconnect (no fork leak) | PASS |
+| RSS stays ~0.8 MB per process | PASS |
+
+- **Hardening applied:** Dropbear now launches with `-s -g` (password logins disabled
+  entirely, not merely failing). Server now advertises **`publickey` only**. (Before this,
+  password auth was offered but always failed because the `/etc/shadow` root hash is not
+  `crypt("password")` — DSM uses its own auth store. `-s -g` makes the pubkey-only claim
+  real at the protocol level.)
+- **Known limitation:** Dropbear here ships no server-side `scp`/`sftp-server`, so inbound
+  `scp`/`sftp` to the box do not work — the module is a modern **shell/exec** channel.
+  File transfer is SMB's job. (To push a file to the box over SSH, pipe it:
+  `cat local | ssh -p 2222 root@NAS 'cat > /path'`.)
+
+### curl (curl 8.5 + mbedTLS 3.6)
+| Test | Result |
+|---|---|
+| HTTPS to github.com / cloudflare.com / raw.githubusercontent.com | PASS (verify=0) |
+| Cipher = `TLS-ECDHE-ECDSA-WITH-CHACHA20-POLY1305-SHA256` | PASS |
+| Expired cert (`expired.badssl.com`) rejected | PASS (rc 60) |
+| Self-signed (`self-signed.badssl.com`) rejected | PASS (rc 60) |
+| Wrong host (`wrong.host.badssl.com`) rejected | PASS (rc 60) |
+| 10 MB HTTPS download, memory stays flat | PASS |
+| Redirect follow (`-L`) | PASS |
+| 3 concurrent curl processes | PASS |
+
+### Regressive (existing services untouched)
+| Check | Result |
+|---|---|
+| Stock system curl still `7.21.3 / OpenSSL 1.0.0n`, unmodified | PASS |
+| Modern curl NOT in default `PATH` (no shadowing of stock) | PASS |
+| SMB still serving — 4 shares list over SMB3 (`smbutil view`, auth `admin`) | PASS |
+| DSM OpenSSH still listening on :22 | PASS |
+| Ports 22 + 2222 + 445 all LISTENING after the battery | PASS |
+| No core dumps produced by the whole battery | PASS |
+| Free RAM healthy afterwards (~14 MB free of 60 MB, +2 GB swap) | PASS |
+
+**Verdict:** all three modules are stable under abuse and coexist cleanly with stock DSM
+services. No hang, crash, leak, or regression observed.
