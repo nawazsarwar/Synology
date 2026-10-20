@@ -230,6 +230,7 @@ int ui_handle(const char *base, const http_req *q, const char *body, size_t blen
  * login throttle are process-global; never fork per connection). ---- */
 #include <signal.h>
 #include <errno.h>
+#include <time.h>
 #include <pwd.h>
 #include <grp.h>
 #include <sys/types.h>
@@ -239,16 +240,21 @@ int ui_handle(const char *base, const http_req *q, const char *body, size_t blen
 #include <arpa/inet.h>
 
 #define REQ_HDR_MAX 8192
+#define REQ_DEADLINE_S 10   /* overall per-request budget (slowloris guard) */
 
 static void usage(FILE *f) {
   fputs("usage: uiserver --root <ui dir> [--port 8181] [--user nobody]\n"
         "  <ui dir> contains www/ and state/\n", f);
 }
 
-static int drop_priv(const char *user) {
+static int drop_priv(const char *user, int explicit_user) {
   uid_t uid = 65534; gid_t gid = 65534;
   struct passwd *pw = getpwnam(user);
   if (pw) { uid = pw->pw_uid; gid = pw->pw_gid; }
+  else if (explicit_user) {
+    fprintf(stderr, "uiserver: unknown user '%s'\n", user);
+    return -1;
+  }
   if (setgroups(0, NULL) != 0) return -1;
   if (setgid(gid) != 0) return -1;
   if (setuid(uid) != 0) return -1;
@@ -262,8 +268,10 @@ static int drop_priv(const char *user) {
 static int read_request(int fd, char *buf, size_t cap, http_req *q,
                         char **body, size_t *blen) {
   size_t len = 0, hdr_end = 0;
+  time_t start = time(NULL);
   while (!hdr_end) {
     ssize_t r;
+    if (time(NULL) - start >= REQ_DEADLINE_S) return -1;
     if (len >= cap - 1) return -1;
     r = recv(fd, buf + len, cap - 1 - len, 0);
     if (r <= 0) return -1;            /* EOF, error or SO_RCVTIMEO */
@@ -276,7 +284,9 @@ static int read_request(int fd, char *buf, size_t cap, http_req *q,
     if (!ui_body_ok(q->content_length)) { *blen = (size_t)UI_MAX_BODY + 1; return 0; }
     if (hdr_end + (size_t)q->content_length >= cap) return -1;
     while (*blen < (size_t)q->content_length) {
-      ssize_t r = recv(fd, buf + hdr_end + *blen, (size_t)q->content_length - *blen, 0);
+      ssize_t r;
+      if (time(NULL) - start >= REQ_DEADLINE_S) return -1;
+      r = recv(fd, buf + hdr_end + *blen, (size_t)q->content_length - *blen, 0);
       if (r <= 0) return -1;
       *blen += (size_t)r;
     }
@@ -288,7 +298,7 @@ static int read_request(int fd, char *buf, size_t cap, http_req *q,
 
 int main(int argc, char **argv) {
   const char *root = NULL, *user = "nobody";
-  int port = 8181, i, ls, one = 1;
+  int explicit_user = 0, port = 8181, i, ls, one = 1;
   struct sockaddr_in sa;
   static char buf[REQ_HDR_MAX + UI_MAX_BODY + 16];
 
@@ -296,7 +306,7 @@ int main(int argc, char **argv) {
     if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h")) { usage(stdout); return 0; }
     else if (!strcmp(argv[i], "--root") && i + 1 < argc) root = argv[++i];
     else if (!strcmp(argv[i], "--port") && i + 1 < argc) port = atoi(argv[++i]);
-    else if (!strcmp(argv[i], "--user") && i + 1 < argc) user = argv[++i];
+    else if (!strcmp(argv[i], "--user") && i + 1 < argc) { user = argv[++i]; explicit_user = 1; }
     else { usage(stderr); return 2; }
   }
   if (!root || port < 1 || port > 65535) { usage(stderr); return 2; }
@@ -311,7 +321,7 @@ int main(int argc, char **argv) {
   if (bind(ls, (struct sockaddr *)&sa, sizeof sa) != 0) { perror("bind"); return 1; }
   if (listen(ls, 16) != 0) { perror("listen"); return 1; }
 
-  if (drop_priv(user) != 0) { fputs("uiserver: privilege drop failed\n", stderr); abort(); }
+  if (drop_priv(user, explicit_user) != 0) { fputs("uiserver: privilege drop failed\n", stderr); abort(); }
 
   for (;;) {
     http_req q; char *body = NULL; size_t blen = 0;

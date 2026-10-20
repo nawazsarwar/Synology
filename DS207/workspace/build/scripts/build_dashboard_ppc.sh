@@ -20,9 +20,13 @@ zig cc $CF -DUISERVER_MAIN -DCOLLECTOR_NO_MAIN $S/uiserver.c $S/http.c $S/auth.c
 file $O/collector $O/uiserver 2>/dev/null || true
 ls -l $O
 echo "=== qemu smoke (kernel 2.6.24) ==="
-qemu-ppc-static -r 2.6.24 $O/uiserver --help; echo "uiserver --help rc=$?"
+qemu-ppc-static -r 2.6.24 $O/uiserver --help || { echo "SMOKE FAIL: uiserver --help"; exit 1; }
+echo "uiserver --help rc=0"
 rm -rf /tmp/st; mkdir -p /tmp/st
-qemu-ppc-static -r 2.6.24 $O/collector --once /tmp/st; echo "collector --once rc=$?"
-ls -l /tmp/st; head -c 300 /tmp/st/*.json | head -20
-cp -f $O/collector $O/uiserver /w/build/dashboard/ppc/
+qemu-ppc-static -r 2.6.24 $O/collector --once /tmp/st || { echo "SMOKE FAIL: collector --once"; exit 1; }
+ls /tmp/st/*.json >/dev/null 2>&1 || { echo "SMOKE FAIL: no JSON written"; exit 1; }
+for f in /tmp/st/*.json; do [ -s "$f" ] || { echo "SMOKE FAIL: empty $f"; exit 1; }; done
+echo "collector --once rc=0, JSON ok"
+ls -l /tmp/st
+cp -f $O/collector $O/uiserver /w/build/dashboard/ppc/ || echo "WARN: host copy failed (ppc/ perms); binaries are in $O"
 echo "DASHBOARD BUILD OK"
