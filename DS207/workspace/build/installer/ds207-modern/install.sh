@@ -162,6 +162,55 @@ install_curl() {
 	say "It does TLS 1.2/1.3, so it can fetch from GitHub and other modern HTTPS sites."
 }
 
+install_ui() {
+	[ -f "$PAYLOAD/ui/bin/uiserver" ] || die "UI payload missing ($PAYLOAD/ui/bin/uiserver)."
+	ensure_ctrl
+	UI="$ROOT/ui"
+	say "Installing dashboard to $UI ..."
+	"$CTRL" ui-stop >/dev/null 2>&1
+	sleep 1
+	mkdir -p "$UI/bin" "$UI/www" "$UI/state" "$UI/etc" "$ROOT/bin"
+	cp "$PAYLOAD/ui/bin/collector" "$UI/bin/collector"
+	cp "$PAYLOAD/ui/bin/uiserver" "$UI/bin/uiserver"
+	chmod +x "$UI/bin/collector" "$UI/bin/uiserver"
+	# the collector resolves smbstatus as <COLLECTOR_UI_DIR=$ROOT>/bin/smbstatus
+	[ -f "$PAYLOAD/ui/bin/smbstatus" ] && { cp "$PAYLOAD/ui/bin/smbstatus" "$ROOT/bin/smbstatus"; chmod +x "$ROOT/bin/smbstatus"; }
+	rm -rf "$UI/www"; mkdir -p "$UI/www"
+	cp -R "$PAYLOAD/ui/www/." "$UI/www/"
+	if [ -t 0 ]; then
+		while :; do
+			printf "Set dashboard password (min 8 chars): "; stty -echo 2>/dev/null; read pw1; stty echo 2>/dev/null; echo ""
+			[ "${#pw1}" -ge 8 ] || { say "too short."; continue; }
+			printf "Repeat password: "; stty -echo 2>/dev/null; read pw2; stty echo 2>/dev/null; echo ""
+			[ "$pw1" = "$pw2" ] && break
+			say "passwords differ."
+		done
+		( umask 077; printf '%s\n' "$pw1" | "$UI/bin/uiserver" --make-hash > "$UI/etc/passwd.hash.new" ) \
+			&& mv "$UI/etc/passwd.hash.new" "$UI/etc/passwd.hash" || die "could not write password hash."
+		chmod 600 "$UI/etc/passwd.hash"
+		say "Dashboard password set."
+	elif [ -n "${UI_PASSWORD:-}" ]; then
+		( umask 077; printf '%s\n' "$UI_PASSWORD" | "$UI/bin/uiserver" --make-hash > "$UI/etc/passwd.hash.new" ) \
+			&& mv "$UI/etc/passwd.hash.new" "$UI/etc/passwd.hash" || die "could not write password hash."
+		chmod 600 "$UI/etc/passwd.hash"
+		say "Dashboard password set from UI_PASSWORD."
+	elif [ ! -s "$UI/etc/passwd.hash" ]; then
+		say "WARNING: no dashboard password set (non-interactive). Login is disabled until you re-run 'sh install.sh ui' from a terminal."
+	fi
+	# uiserver drops to 'nobody' and re-reads the hash on every login, so the (0600) hash and
+	# its dir must be owned by that user, not root.
+	chmod 700 "$UI/etc"; chmod -R a+rX "$UI/www" "$UI/bin"; chmod 755 "$UI/state"
+	if [ -f "$UI/etc/passwd.hash" ]; then
+		chmod 600 "$UI/etc/passwd.hash"
+		chown nobody "$UI/etc" "$UI/etc/passwd.hash" 2>/dev/null || chown 65534 "$UI/etc" "$UI/etc/passwd.hash"
+	fi
+	( umask 022; "$CTRL" ui-start )
+	ip=$(ifconfig eth0 2>/dev/null | grep inet | head -1 | cut -d: -f2 | cut -d' ' -f1)
+	say ""
+	say "Dashboard ready: http://${ip:-<NAS-IP>}:8181"
+	say "(Independent of Samba: stop it with '$CTRL ui-stop'.)"
+}
+
 revert_stock() {
 	[ -x "$CTRL" ] || die "not installed."
 	"$CTRL" revert
@@ -170,8 +219,8 @@ revert_stock() {
 }
 
 uninstall() {
-	say "Uninstalling everything (Samba + SSH + curl) ..."
-	[ -x "$CTRL" ] && { "$CTRL" ssh-stop 2>/dev/null; "$CTRL" revert; }
+	say "Uninstalling everything (Samba + SSH + curl + dashboard) ..."
+	[ -x "$CTRL" ] && { "$CTRL" ui-stop 2>/dev/null; "$CTRL" ssh-stop 2>/dev/null; "$CTRL" revert; }
 	killall dropbearmulti 2>/dev/null
 	rm -f "$STARTUP/S99modernsmb"
 	rm -rf "$ROOT"
@@ -190,6 +239,7 @@ menu() {
 		echo "  4) Status"
 		echo "  5) Revert to stock Samba (keep installed, disable at boot)"
 		echo "  6) Uninstall completely (remove everything, restore stock)"
+		echo "  7) Install Monitoring Dashboard (web UI on port 8181)"
 		echo "  0) Exit"
 		echo -n "choose: "
 		read ans
@@ -200,6 +250,7 @@ menu() {
 			4) status ;;
 			5) revert_stock ;;
 			6) uninstall ;;
+			7) install_ui ;;
 			0|q|Q) exit 0 ;;
 			*) echo "invalid choice" ;;
 		esac
@@ -212,9 +263,10 @@ case "${1:-menu}" in
 	install) install_smb ;;
 	ssh)     install_ssh ;;
 	curl)    install_curl ;;
+	ui)      install_ui ;;
 	status)  status ;;
 	revert)  revert_stock ;;
 	uninstall) uninstall ;;
 	menu)    menu ;;
-	*) echo "usage: $0 {install|ssh|curl|status|revert|uninstall}  (or no arg for menu)"; exit 1 ;;
+	*) echo "usage: $0 {install|ssh|curl|ui|status|revert|uninstall}  (or no arg for menu)"; exit 1 ;;
 esac

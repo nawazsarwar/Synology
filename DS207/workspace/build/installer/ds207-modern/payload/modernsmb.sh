@@ -28,6 +28,11 @@ DBKEY=$SSHDIR/hostkey_ed25519
 DBPID=$VAR/dropbear.pid
 DBBIN=$SSHDIR/dropbearmulti
 
+# Monitoring dashboard (collector + uiserver). Fully independent of Samba: NO watchdog,
+# no coupling to the revert path - a UI crash must never affect file sharing.
+UIDIR=$ROOT/ui
+UIPORT=8181
+
 mkdir -p "$VAR/lock" "$VAR/run" "$ROOT/private" 2>/dev/null
 
 log() { echo "$(date '+%Y-%m-%d %H:%M:%S') $*" >>"$LOG" 2>/dev/null; }
@@ -95,6 +100,27 @@ ssh_start() {
 }
 ssh_stop() { killall dropbearmulti 2>/dev/null; }
 
+# ---- Dashboard (collector --loop + uiserver on :8181) ----
+# COLLECTOR_UI_DIR=$ROOT makes the collector's tool whitelist resolve
+# $ROOT/bin/smbstatus, $ROOT/etc/smb.conf and $ROOT/sbin/smbd (the modern Samba tree).
+ui_collector_running() { ps w 2>/dev/null | grep "$UIDIR/bin/collector" | grep -qv grep; }
+ui_server_running() { ps w 2>/dev/null | grep "$UIDIR/bin/uiserver" | grep -qv grep; }
+listening_ui() { netstat -ln 2>/dev/null | grep -qE "[:.]$UIPORT "; }
+ui_start() {
+	[ -x "$UIDIR/bin/uiserver" ] || return 0         # UI module not installed
+	mkdir -p "$UIDIR/state" 2>/dev/null
+	if ! ui_collector_running && [ -x "$UIDIR/bin/collector" ]; then
+		COLLECTOR_UI_DIR="$ROOT" COLLECTOR_PROC_DIR=/proc \
+			"$UIDIR/bin/collector" --loop "$UIDIR/state" >>"$VAR/ui-collector.log" 2>&1 </dev/null &
+	fi
+	if ! ui_server_running; then
+		"$UIDIR/bin/uiserver" --root "$UIDIR" --port "$UIPORT" --user nobody >>"$VAR/ui-server.log" 2>&1 </dev/null &
+	fi
+	sleep 2
+	ui_server_running && log "dashboard up on :$UIPORT" || log "dashboard failed to start"
+}
+ui_stop() { killall uiserver collector 2>/dev/null; }
+
 case "$1" in
 	start)
 		stop_stock
@@ -114,6 +140,8 @@ case "$1" in
 		stock_running && echo "stock Samba restored" || echo "WARNING: stock not confirmed; check $LOG"
 		;;
 	boot)
+		# dashboard starts on its own track, regardless of Samba kill-switch/watchdog
+		( sleep 20; ui_start ) >>"$LOG" 2>&1 &
 		# watchdog-protected start, fully backgrounded so it can never block boot
 		[ -f "$DISABLE" ] && { log "boot: kill-switch present, staying on stock"; exit 0; }
 		(
@@ -141,6 +169,8 @@ case "$1" in
 		) >>"$LOG" 2>&1 &
 		exit 0
 		;;
+	ui-start) ui_start; ui_server_running && echo "dashboard up on :$UIPORT" || echo "dashboard not running; see $VAR/ui-server.log";;
+	ui-stop)  ui_stop; echo "dashboard stopped (Samba unaffected)";;
 	ssh-start) ssh_start; ssh_running && echo "dropbear up on port $DBPORT (pubkey auth)" || echo "dropbear not running; see $VAR/dropbear.log";;
 	ssh-stop)  ssh_stop; echo "dropbear stopped (DSM SSH on 22 unaffected)";;
 	status)
@@ -154,6 +184,12 @@ case "$1" in
 		if [ -x "$DBBIN" ]; then
 			if ssh_running; then echo "dropbear : RUNNING on port $DBPORT (pubkey auth)"; else echo "dropbear : installed, not running"; fi
 		else echo "dropbear : not installed"; fi
+		echo "-- dashboard --"
+		if [ -x "$UIDIR/bin/uiserver" ]; then
+			if ui_server_running && listening_ui; then echo "dashboard : RUNNING on :$UIPORT"; else echo "dashboard : installed, not running"; fi
+			if ui_collector_running; then echo "collector : RUNNING"; else echo "collector : not running"; fi
+			if [ -s "$UIDIR/etc/passwd.hash" ]; then echo "password  : set"; else echo "password  : NOT SET (login disabled)"; fi
+		else echo "dashboard : not installed"; fi
 		echo "-- modern curl --"
 		if [ -x "$ROOT/bin/curl" ]; then echo "curl     : $($ROOT/bin/curl --version 2>/dev/null | head -1 | cut -c1-60)"; else echo "curl     : not installed"; fi
 		;;
@@ -164,7 +200,7 @@ case "$1" in
 		touch "$DISABLE" && echo "kill-switch set; boot will stay on stock Samba"
 		;;
 	*)
-		echo "usage: $0 {start|stop|revert|boot|status|enable|disable|ssh-start|ssh-stop}"
+		echo "usage: $0 {start|stop|revert|boot|status|enable|disable|ssh-start|ssh-stop|ui-start|ui-stop}"
 		exit 1
 		;;
 esac

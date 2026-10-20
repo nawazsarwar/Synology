@@ -8,9 +8,10 @@ S=/w/build/dashboard/src
 O=/out/dashboard-ppc
 mkdir -p $O /w/build/dashboard/ppc
 zig cc -target $T -O2 -c /w/build/scripts/syscompat.c -o /opt/syscompat.o
-zig cc -target $T -O2 -c /w/build/scripts/compat64.c  -o /opt/compat64.o
+# compat64.o is intentionally NOT linked here: its nanosleep passthrough recurses with
+# musl sleep() -> SIGSEGV in collector --loop (it exists only for Samba time64 names).
 CF="-target $T -mcpu=603e -O2 -std=gnu99 -Wall -Wextra -I $S"
-LF="-static -no-pie -Wl,--strip-all /opt/syscompat.o /opt/compat64.o"
+LF="-static -no-pie -Wl,--strip-all /opt/syscompat.o"
 PARSERS="$S/parse_*.c $S/json.c"
 # (zig objcopy cannot strip big-endian ELF; strip at link time instead)
 # collector: everything except the UI server

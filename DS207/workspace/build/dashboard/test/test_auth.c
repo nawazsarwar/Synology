@@ -157,6 +157,27 @@ TEST(login_body_cap) { char b[4096]; char *big = malloc(20000); int st; http_req
   free(big);
 }
 
+TEST(make_hash_roundtrip) {
+  FILE *in = tmpfile(), *out = tmpfile(); char line[256], hf[300];
+  FILE *f;
+  ASSERT(in && out);
+  fputs("s3cret pass\n", in); rewind(in);
+  ASSERT(ui_make_hash(in, out, "/dev/urandom") == 0);
+  rewind(out); ASSERT(fgets(line, sizeof line, out) != NULL);
+  ASSERT(strncmp(line, "$s256$", 6) == 0);
+  snprintf(hf, sizeof hf, "/tmp/mkhash_test_%d", (int)getpid());
+  f = fopen(hf, "w"); fputs(line, f); fclose(f);
+  ASSERT(auth_verify("s3cret pass", hf) == 1);
+  ASSERT(auth_verify("wrong", hf) == 0);
+  remove(hf); fclose(in); fclose(out);
+  /* empty password and missing entropy are rejected */
+  in = tmpfile(); out = tmpfile(); fputs("\n", in); rewind(in);
+  ASSERT(ui_make_hash(in, out, "/dev/urandom") != 0);
+  fclose(in); in = tmpfile(); fputs("x\n", in); rewind(in);
+  ASSERT(ui_make_hash(in, out, "/nonexistent/rand") != 0);
+  fclose(in); fclose(out);
+}
+
 TEST(login_throttle) { char b[4096]; int i, st = 0;
   setup(); auth_clear_sessions();
   for (i = 0; i < 12; i++) st = run("POST /api/login HTTP/1.0\r\n\r\n", "{\"password\":\"nope\"}", b, sizeof b);

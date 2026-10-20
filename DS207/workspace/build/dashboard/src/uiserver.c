@@ -231,6 +231,27 @@ int ui_handle(const char *base, const http_req *q, const char *body, size_t blen
   return ui_serve(base, q, fd);
 }
 
+/* ---- --make-hash (installer helper): password on stdin, random salt, hash on stdout ---- */
+int ui_make_hash(FILE *in, FILE *out, const char *rand_path) {
+  static const char cs[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  char pw[AUTH_PW_MAX + 8], salt[17], hash[160];
+  unsigned char rnd[16]; FILE *rf; size_t n, i;
+  if (!fgets(pw, sizeof pw, in)) return 1;
+  pw[strcspn(pw, "\r\n")] = '\0';
+  if (pw[0] == '\0' || strlen(pw) > AUTH_PW_MAX) return 2;
+  rf = fopen(rand_path, "rb");
+  if (!rf) return 3;
+  n = fread(rnd, 1, sizeof rnd, rf);
+  fclose(rf);
+  if (n != sizeof rnd) return 3;
+  for (i = 0; i < sizeof rnd; i++) salt[i] = cs[rnd[i] % (sizeof cs - 1)];
+  salt[16] = '\0';
+  if (auth_make_hash(pw, salt, hash, sizeof hash) != 0) return 4;
+  fprintf(out, "%s\n", hash);
+  memset(pw, 0, sizeof pw);
+  return 0;
+}
+
 #ifdef UISERVER_MAIN
 /* ---- uiserver main: SINGLE-PROCESS accept loop (auth.c session table and
  * login throttle are process-global; never fork per connection). ---- */
@@ -250,6 +271,7 @@ int ui_handle(const char *base, const http_req *q, const char *body, size_t blen
 
 static void usage(FILE *f) {
   fputs("usage: uiserver --root <ui dir> [--port 8181] [--user nobody]\n"
+        "       uiserver --make-hash   (password on stdin -> $s256$ line on stdout)\n"
         "  <ui dir> contains www/ and state/\n", f);
 }
 
@@ -308,6 +330,7 @@ int main(int argc, char **argv) {
   struct sockaddr_in sa;
   static char buf[REQ_HDR_MAX + UI_MAX_BODY + 16];
 
+  if (argc == 2 && !strcmp(argv[1], "--make-hash")) return ui_make_hash(stdin, stdout, "/dev/urandom");
   for (i = 1; i < argc; i++) {
     if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h")) { usage(stdout); return 0; }
     else if (!strcmp(argv[i], "--root") && i + 1 < argc) root = argv[++i];
