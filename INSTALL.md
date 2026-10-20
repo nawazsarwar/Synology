@@ -22,8 +22,24 @@ shares again.
 
 ## Step 1 — Download the bundle
 
-Download `ds207-modern-<version>.tar.gz` from the project's **GitHub Releases** page onto a
-normal computer (not the NAS — the NAS's 2014 TLS can't reach GitHub).
+Download the installer onto a **normal computer** (not the NAS — the NAS's 2014 TLS can't
+reach GitHub) from the project's **GitHub Releases** page:
+
+- Releases: https://github.com/nawazsarwar/Synology/releases
+- Latest file: **`ds207-modern-0.2.1.tar.gz`**
+  (direct link: https://github.com/nawazsarwar/Synology/releases/download/v0.2.1/ds207-modern-0.2.1.tar.gz)
+
+Optional — verify the download (recommended):
+
+```sh
+shasum -a 256 ds207-modern-0.2.1.tar.gz
+# expected:
+# 6b7c0159a584ada34798880695f26c2f384ee8c504dd36f9a88dd845c706e3b7
+```
+
+> **What's in v0.2.1:** modern Samba (SMB2/SMB3 + Apple vfs_fruit), Dropbear SSH
+> (pubkey-only, port 2222), and a self-contained modern curl + TLS. See the Optional
+> modules section below.
 
 ## Step 2 — Copy it to the NAS
 
