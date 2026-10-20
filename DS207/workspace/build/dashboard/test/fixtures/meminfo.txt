@@ -1,0 +1,5 @@
+"MemTotal:        61456 kB\n"
+"MemFree:          5120 kB\n"
+"Buffers:          4096 kB\n"
+"Cached:          30720 kB\n"
+"SwapCached:          0 kB\n"
