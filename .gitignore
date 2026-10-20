@@ -45,6 +45,7 @@ DS207/workspace/build/installer/ds207-modern/payload/sbin/
 DS207/workspace/build/installer/ds207-modern/payload/ssh/
 DS207/workspace/build/installer/ds207-modern/payload/bin/
 DS207/workspace/build/installer/ds207-modern/payload/ssl/
+DS207/workspace/build/installer/ds207-modern/payload/ui/
 DS207/workspace/build/installer/*.tar.gz
 DS207/workspace/build/installer/*.zip
 
