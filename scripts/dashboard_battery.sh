@@ -35,7 +35,8 @@ check "authed /api/system == 200 after flood" eq "$(code -b "$CJ" "$H/api/system
 while [ $i -lt "$N" ]; do ( j=0; while [ $j -lt 5 ]; do printf "%s\n" "$(code -b "$CJ" "$H/api/system")" >> "$CONC"; j=$((j+1)); done ) & i=$((i+1)); done
 wait
 total=$(grep -c . "$CONC"); ok=$(grep -c '^200$' "$CONC")
-check "all $((N*5)) concurrent authed requests 200 (got $ok/$total)" [ "$total" -eq $((N*5)) ] && [ "$ok" -eq "$total" ]
+conc_ok=0; [ "$total" -eq $((N*5)) ] && [ "$ok" -eq "$total" ] && conc_ok=1
+check "all $((N*5)) concurrent authed requests 200 (got $ok/$total)" [ "$conc_ok" -eq 1 ]
 
 bad=0; i=0
 while [ $i -lt 60 ]; do
