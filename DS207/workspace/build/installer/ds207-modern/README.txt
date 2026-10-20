@@ -1,0 +1,39 @@
+DS207 Modernization Bundle
+==========================
+
+Brings modern SMB2/SMB3 file sharing (with Apple Time Machine / Finder support)
+to a Synology DS207 running DSM 3.1. Modern Windows, macOS, and Linux clients
+can mount shares again.
+
+SAFETY
+  - Nothing in flash (kernel/bootloader) is touched: the box CANNOT be bricked.
+  - The stock Samba is never modified; it is just stopped while the modern one runs.
+  - If modern Samba fails to start at boot, it auto-reverts to stock.
+  - Everything is installed on the data volume (/volume1/@modernsmb), so it even
+    survives a DSM reinstall.
+
+IMPORTANT
+  - Keep this NAS on your LAN only. Its Linux kernel (2.6.24, 2008) cannot be
+    updated and must NOT be exposed to the public internet (no port-forwarding).
+
+HOW TO INSTALL
+  1. Copy this whole folder onto the NAS (e.g. into a shared folder via
+     File Station or by dragging it onto a mounted share).
+  2. Enable SSH on the NAS: Control Panel -> Terminal -> Enable SSH service.
+  3. SSH in as an admin user, become root, and run the installer:
+         cd /volume1/<your-share>/ds207-modern
+         sudo sh install.sh          # or: sh install.sh  (if already root)
+  4. Choose "1) Install / upgrade Modern SMB".
+
+That's it. Your existing DSM shared folders are served automatically over SMB2/SMB3.
+
+MANAGE IT LATER
+     /volume1/@modernsmb/bin/modernsmb.sh status     # what's running
+     /volume1/@modernsmb/bin/modernsmb.sh revert     # back to stock now
+     /volume1/@modernsmb/bin/modernsmb.sh start      # modern again
+  Or re-run install.sh for the menu (status / revert / uninstall).
+
+UNINSTALL
+     sh install.sh uninstall
+
+Kernel is frozen; this is a LAN file server, not an internet-facing box.

@@ -40,5 +40,10 @@ DS216/
 DS207/workspace/build/sbin/
 DS207/workspace/build/bin/
 
+# --- Installer bundle binaries (ship via GitHub Releases, not git) ---
+DS207/workspace/build/installer/ds207-modern/payload/sbin/
+DS207/workspace/build/installer/*.tar.gz
+DS207/workspace/build/installer/*.zip
+
 # --- Logs ---
 *.log

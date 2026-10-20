@@ -1,0 +1,65 @@
+# Modern Samba (SMB2/SMB3) global config for DS207 - generated base.
+# install.sh appends share stanzas parsed from the live DSM config.
+# All state kept under /volume1/@modernsmb so the solution survives a DSM reinstall.
+
+[global]
+   workgroup = WORKGROUP
+   server string = DS207
+   netbios name = DS207
+   security = user
+   map to guest = Bad User
+
+   # --- Protocol: modern only, no SMB1 ---
+   server min protocol = SMB2_02
+   server max protocol = SMB3
+   client min protocol = SMB2_02
+   client max protocol = SMB3
+
+   # --- Self-contained state dirs (data volume, survive reinstall) ---
+   private dir = /volume1/@modernsmb/private
+   lock directory = /volume1/@modernsmb/var/lock
+   state directory = /volume1/@modernsmb/var
+   cache directory = /volume1/@modernsmb/var
+   pid directory = /volume1/@modernsmb/var/run
+   ncalrpc dir = /volume1/@modernsmb/var/ncalrpc
+   log file = /volume1/@modernsmb/var/log.%m
+   log level = 0
+   max log size = 100
+   logging = file
+
+   # --- Auth: reuse the DSM-managed smbpasswd (stays in sync with the Web UI) ---
+   passdb backend = smbpasswd:/usr/syno/etc/private/smbpasswd
+   smb passwd file = /usr/syno/etc/private/smbpasswd
+
+   # --- 64 MB RAM survival + kernel 2.6.24 stability (hard-won settings) ---
+   max smbd processes = 8
+   deadtime = 10
+   socket options = TCP_NODELAY IPTOS_LOWDELAY
+   use sendfile = no
+   aio read size = 0
+   aio write size = 0
+   min receivefile size = 0
+   kernel change notify = no
+   load printers = no
+   printing = bsd
+   printcap name = /dev/null
+   disable spoolss = yes
+   winbind enum users = no
+   winbind enum groups = no
+   dns proxy = no
+   nmbd bind explicit broadcast = no
+
+   # --- macOS / Apple interop (replaces AFP) ---
+   vfs objects = catia fruit streams_xattr
+   fruit:metadata = stream
+   fruit:model = TimeCapsule8,119
+   fruit:posix_rename = yes
+   fruit:veto_appledouble = no
+   fruit:nfs_aces = no
+   fruit:wipe_intentionally_left_blank_rfork = yes
+   fruit:delete_empty_adfiles = yes
+   fruit:encoding = native
+   ea support = yes
+   store dos attributes = yes
+
+# ===== shares below are generated from the live DSM config at install time =====

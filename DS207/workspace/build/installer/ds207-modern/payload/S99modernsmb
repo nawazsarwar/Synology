@@ -1,0 +1,7 @@
+#!/bin/sh
+# S99modernsmb - DS207 boot hook (Synology /volume1/startup mechanism).
+# Hands off to the watchdog-protected boot path, which is fully backgrounded
+# and always exits 0, so it can never block or break the boot.
+CTRL=/volume1/@modernsmb/bin/modernsmb.sh
+[ -x "$CTRL" ] && "$CTRL" boot
+exit 0

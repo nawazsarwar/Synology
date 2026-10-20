@@ -258,3 +258,55 @@ After the earlier Mode 2 reset + fresh stock DSM 3.1 reinstall, access was recov
 This is the first modern *desktop* client (not just a scripted smbclient) to mount the DS207 over SMB3. Memory under load stayed fine.
 
 **Still ephemeral:** smbd.new was started by hand — it dies on reboot and stock SMB1 returns. Next: persist safely with a watchdog / auto-revert (never raw boot-path — the Round-1 lockout lesson), then verify a fresh macOS client.
+
+---
+
+## Phase 5 / Trial 3.0 — The overlay installer, built & fully validated (2026-10-20)
+
+Built the shippable **script/overlay installer** (the chosen delivery route — see
+`MODERNIZATION_STRATEGY.md`). Bundle: `ds207-modern/` with `install.sh`, a runtime control
+script, a boot hook, the tuned `smb.conf` global, and stripped binaries.
+
+**Binaries stripped for distribution:** smbd 66 MB -> 23.7 MB, nmbd 42 MB -> 15.3 MB
+(via `llvm-objcopy --strip-all`; zig objcopy can't cross-endian strip, and Debian has no
+32-bit big-endian PPC binutils package). Both still run under `qemu-ppc-static -r 2.6.24`.
+Tarball = **15 MB** gzipped.
+
+**Design decisions:**
+- **Everything lives on the data volume** `/volume1/@modernsmb/` (binaries, config, state,
+  control script) and the boot hook at `/volume1/startup/S99modernsmb` — so the whole
+  solution **survives a DSM reinstall** (data volume is preserved). This is a real bonus
+  the earlier strategy doc assumed we'd lack.
+- Boot mechanism: DSM's `supportstartupd=yes` runs `/volume1/startup/S*` late in boot
+  (after network + stock samba). Confirmed in `/etc/rc`.
+- **Stock Samba is never modified.** The installer stops the stock service and runs the
+  modern smbd/nmbd from the overlay dir. Revert = stop ours, start stock.
+- **Watchdog boot path** (`modernsmb.sh boot`): fully backgrounded (never blocks boot),
+  starts modern Samba, then polls for a listener on 445 for ~40 s. If it doesn't come up,
+  it **kills modern, sets a kill-switch (`.disabled`), and restarts stock** — the box is
+  never left without file sharing. A kill-switch file also lets you force stock from SSH.
+- **Shares auto-generated** from the live DSM `smb.conf` at install time (awk parses each
+  section's path / guest ok / valid users / writeable), so Web-UI-created shares "just work"
+  over SMB2/SMB3, preserving their DSM access rules.
+
+**End-to-end validation on the real box (all passed):**
+1. `install` -> generated `[global][AbdullahDrive][smbtest][homes]`, smbd up, 445 listening.
+2. Authenticated SMB3 from a clean Debian `smbclient`: `admin` put/get on the real
+   `AbdullahDrive` share -> **byte-identical** (`cmp` OK); `Abdullah` lists. Timestamps
+   correct (time64 fix holding). (Guest is correctly denied — the DSM share has
+   `valid users=admin`; the installer faithfully preserved that ACL.)
+3. **Watchdog failure test:** hid the smbd binary, ran the boot hook -> within the timeout
+   it set `.disabled` **and restarted stock Samba** (445 still listening). Proven: the
+   Round-1 lockout cannot recur.
+4. **Normal boot test:** ran the boot hook with a working binary -> modern Samba healthy,
+   no kill-switch.
+5. **Uninstall:** removed `/volume1/@modernsmb` + the boot hook, stock Samba restored and
+   listening on 445.
+
+Left the box with the installer **re-installed and live** (modern SMB2/SMB3 serving).
+Clients authenticate as `admin` / `Abdullah` (password `password`); guest-only access is
+denied by the shares' own DSM ACLs.
+
+**Still to come (future installer modules):** self-contained modern curl + TLS, and modern
+SSH (Dropbear). The installer menu is structured to add them. `checksum.syno` field4/field5
+remains parked (only needed if a `.pat` is ever revisited).
