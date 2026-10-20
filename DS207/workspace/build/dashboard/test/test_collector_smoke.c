@@ -66,3 +66,31 @@ TEST(collect_once_writes_all_snapshots_atomically) {
   ASSERT(access(p, F_OK) != 0);       /* wan is a later task */
   collector_set_provider(NULL);
 }
+
+static char *null_tool(tool_id id) { (void)id; return NULL; }
+
+TEST(collect_once_survives_all_tools_missing) {
+  char tmpl[] = "/tmp/collXXXXXX", state[300], p[400]; char *s;
+  ASSERT(mkdtemp(tmpl) != NULL);
+  snprintf(state, sizeof state, "%s", tmpl);
+  setenv("COLLECTOR_PROC_DIR", "/nonexistent", 1);
+  collector_set_provider(null_tool);
+  ASSERT(collect_once(state) == 0);
+  snprintf(p, sizeof p, "%s/sessions.json", state);
+  s = slurp(p);
+  ASSERT(s && s[0] == '{' && strstr(s, "\"smb\":[]") && strstr(s, "\"open_files\":[]"));
+  free(s);
+  snprintf(p, sizeof p, "%s/disks.json", state);
+  s = slurp(p); ASSERT(s && s[0] == '[' && s[strlen(s) - 1] == ']'); free(s);
+  collector_set_provider(NULL);
+}
+
+TEST(exec_tool_times_out_hung_child) {
+  /* exec wrapper with a nonexistent UI dir: smbd -V exec fails fast -> NULL, no hang */
+  char *o;
+  setenv("COLLECTOR_UI_DIR", "/nonexistent", 1);
+  o = collector_exec_tool(TOOL_VER_SMBD);
+  ASSERT(o == NULL);
+  free(o);
+  unsetenv("COLLECTOR_UI_DIR");
+}

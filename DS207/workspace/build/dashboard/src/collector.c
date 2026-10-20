@@ -17,10 +17,14 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <poll.h>
+#include <errno.h>
+#include <time.h>
 #include <sys/wait.h>
 
 #define MAXIN  (64 * 1024)
 #define MAXOUT (64 * 1024)
+#define TOOL_TIMEOUT_MS 10000   /* a hung tool must not stall the loop */
 
 /* ---- thin exec wrapper + whitelist ------------------------------------ */
 static const char *ui_dir(void) {
@@ -31,9 +35,10 @@ static const char *ui_dir(void) {
 char *collector_exec_tool(tool_id id) {
   char smbstatus[256], conf[256], smbd[256];
   char *argv[6]; int fd[2]; pid_t pid; char *buf; size_t len = 0; ssize_t r; int st;
-  snprintf(smbstatus, sizeof smbstatus, "%s/bin/smbstatus", ui_dir());
-  snprintf(conf, sizeof conf, "%s/etc/smb.conf", ui_dir());
-  snprintf(smbd, sizeof smbd, "%s/sbin/smbd", ui_dir());
+  if (snprintf(smbstatus, sizeof smbstatus, "%s/bin/smbstatus", ui_dir()) >= (int)sizeof smbstatus ||
+      snprintf(conf, sizeof conf, "%s/etc/smb.conf", ui_dir()) >= (int)sizeof conf ||
+      snprintf(smbd, sizeof smbd, "%s/sbin/smbd", ui_dir()) >= (int)sizeof smbd)
+    return NULL;   /* overlong COLLECTOR_UI_DIR: fail loudly, don't truncate */
   switch (id) {   /* THE whitelist: fixed argv only */
     case TOOL_DF:        argv[0]="df"; argv[1]=NULL; break;
     case TOOL_SMART:     argv[0]="/usr/syno/bin/smartctl"; argv[1]="-a"; argv[2]="/dev/sda"; argv[3]=NULL; break;
@@ -49,6 +54,7 @@ char *collector_exec_tool(tool_id id) {
   pid = fork();
   if (pid < 0) { close(fd[0]); close(fd[1]); return NULL; }
   if (pid == 0) {
+    setpgid(0, 0);   /* own group so a timeout kill reaches grandchildren */
     int nul = open("/dev/null", O_RDONLY);
     if (nul >= 0) dup2(nul, 0);
     dup2(fd[1], 1); dup2(fd[1], 2);   /* some -V tools print to stderr */
@@ -59,11 +65,30 @@ char *collector_exec_tool(tool_id id) {
   close(fd[1]);
   buf = malloc(MAXIN + 1);
   if (buf) {
-    while (len < MAXIN && (r = read(fd[0], buf + len, MAXIN - len)) > 0) len += (size_t)r;
+    struct timespec t0, t1; long left = TOOL_TIMEOUT_MS; int timed_out = 0;
+    clock_gettime(CLOCK_MONOTONIC, &t0);
+    while (len < MAXIN) {
+      struct pollfd pf; int pr;
+      pf.fd = fd[0]; pf.events = POLLIN; pf.revents = 0;
+      pr = poll(&pf, 1, (int)left);
+      if (pr == 0) { timed_out = 1; break; }
+      if (pr > 0) {
+        r = read(fd[0], buf + len, MAXIN - len);
+        if (r == 0) break;
+        if (r > 0) len += (size_t)r;
+        else if (errno != EINTR) break;
+      } else if (errno != EINTR) break;
+      clock_gettime(CLOCK_MONOTONIC, &t1);   /* total deadline, not per-read */
+      left = TOOL_TIMEOUT_MS - ((long)(t1.tv_sec - t0.tv_sec) * 1000 + (t1.tv_nsec - t0.tv_nsec) / 1000000);
+      if (left <= 0) { timed_out = 1; break; }
+    }
     buf[len] = 0;
+    if (timed_out) kill(-pid, SIGKILL), kill(pid, SIGKILL);
+  } else {
+    kill(-pid, SIGKILL), kill(pid, SIGKILL);
   }
   close(fd[0]);
-  waitpid(pid, &st, 0);
+  while (waitpid(pid, &st, 0) < 0 && errno == EINTR) {}
   if (buf && len == 0) { free(buf); buf = NULL; }
   return buf;
 }
@@ -91,8 +116,9 @@ static char *read_proc(const char *rel) {
 /* write statedir/name.json.tmp then rename over name.json */
 static int write_atomic(const char *dir, const char *name, const char *data, size_t n) {
   char tmp[512], fin[512]; FILE *f;
-  snprintf(fin, sizeof fin, "%s/%s.json", dir, name);
-  snprintf(tmp, sizeof tmp, "%s/%s.json.tmp", dir, name);
+  if (snprintf(fin, sizeof fin, "%s/%s.json", dir, name) >= (int)sizeof fin ||
+      snprintf(tmp, sizeof tmp, "%s/%s.json.tmp", dir, name) >= (int)sizeof tmp)
+    return -1;   /* overlong statedir */
   f = fopen(tmp, "wb");
   if (!f) return -1;
   if (fwrite(data, 1, n, f) != n || fflush(f) != 0 || fsync(fileno(f)) != 0) {
@@ -127,15 +153,19 @@ static int snap_storage(const char *dir, char *out) {
 static int snap_disks(const char *dir, char *out) {
   char *sm = run_tool(TOOL_SMART); int n;
   out[0] = '[';
+  /* build_smart_json returns bytes written or -1 (never a would-be length) */
   n = build_smart_json("sda", nz(sm), out + 1, MAXOUT - 2);
   free(sm);
-  if (n < 0) return 1;
+  if (n < 0 || n > MAXOUT - 3) {   /* failure: safe fallback, still report failure */
+    write_atomic(dir, "disks", "[]", 2);
+    return 1;
+  }
   out[n + 1] = ']'; out[n + 2] = 0;
   return write_atomic(dir, "disks", out, (size_t)n + 2);
 }
 static int snap_sessions(const char *dir, char *out) {
   char *s = run_tool(TOOL_SMBSTATUS), *w = run_tool(TOOL_WHO);
-  int n = build_sessions_json(s, w, out, MAXOUT);
+  int n = build_sessions_json(nz(s), nz(w), out, MAXOUT);
   free(s); free(w);
   return n < 0 || write_atomic(dir, "sessions", out, (size_t)n);
 }
