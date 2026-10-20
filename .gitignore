@@ -57,3 +57,8 @@ DS207/workspace/build/installer/*.zip
 # (not macOS ._ junk, which the rules at the top still ignore).
 !releases/*.tar.gz
 DS207/workspace/build/dashboard/ppc/
+
+# dashboard UI
+DS207/workspace/build/dashboard-ui/node_modules/
+DS207/workspace/build/dashboard-ui/dist/
+DS207/workspace/build/dashboard/www/
