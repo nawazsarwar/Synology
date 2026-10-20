@@ -1,0 +1,90 @@
+# Modernized smb.conf for Synology DS207 (PowerPC 603e, 64 MB RAM, kernel 2.6.24)
+# Samba 4.x cross-built static-musl. Tuned HARD for 64 MB total RAM.
+# Goal: SMB2/SMB3 for Windows 11 + macOS, with Apple vfs_fruit (Time Machine over SMB).
+# The DSM 3.1 Web UI still manages users/shares; this file is installed by S80samba.sh.
+
+[global]
+   workgroup = WORKGROUP
+   server string = DS207
+   netbios name = DS207
+   security = user
+   map to guest = Bad User
+
+   # --- Protocol: force modern, drop SMB1 entirely ---
+   server min protocol = SMB2_02
+   server max protocol = SMB3
+   client min protocol = SMB2_02
+   client max protocol = SMB3
+
+   # --- 64 MB RAM survival tuning ---
+   # Cap worker processes; each smbd child is the memory cost on this box.
+   max smbd processes = 8
+   deadtime = 10
+   smbd profiling level = off
+   # Small socket buffers (default 64k each way is fine; avoid huge AIO buffers)
+   socket options = TCP_NODELAY IPTOS_LOWDELAY
+   use sendfile = no        # sendfile path unstable on kernel 2.6.24; plain pread works
+   aio read size = 0
+   aio write size = 0
+   # Trim everything we don't need (saves RAM + attack surface)
+   load printers = no
+   printing = bsd
+   printcap name = /dev/null
+   disable spoolss = yes
+   kernel change notify = no   # notifyd/inotify change-notify off (not needed; avoids extra load)
+   min receivefile size = 0
+   winbind enum users = no
+   winbind enum groups = no
+   dns proxy = no
+   nmbd bind explicit broadcast = no
+   # No AD/DC, no LDAP backend
+   passdb backend = smbpasswd
+   smb passwd file = /usr/syno/etc/private/smbpasswd
+
+   # --- Logging: minimal (RAM + flash wear) ---
+   log level = 0
+   max log size = 50
+   logging = file
+   log file = /var/log/samba/log.%m
+
+   # --- macOS / Apple interop (replaces AFP) ---
+   # Applied globally so every share gets Finder + Time Machine behaviour.
+   vfs objects = catia fruit streams_xattr
+   fruit:metadata = stream
+   fruit:model = TimeCapsule8,119
+   fruit:posix_rename = yes
+   fruit:veto_appledouble = no
+   fruit:nfs_aces = no
+   fruit:wipe_intentionally_left_blank_rfork = yes
+   fruit:delete_empty_adfiles = yes
+   fruit:encoding = native
+   # EA/xattr must work on the EXT3 volume (mount must allow user_xattr)
+   ea support = yes
+   store dos attributes = yes
+
+[homes]
+   comment = Home Directories
+   browseable = no
+   read only = no
+   create mask = 0700
+   directory mask = 0700
+   valid users = %S
+
+# Your DSM-created shared folder, now served over SMB2/SMB3.
+# Add more shares by copying this block and changing the name + path to
+# /volume1/<another-share>.  (Round 2: auto-pull shares from the DSM Web UI.)
+[AbdullahDrive]
+   comment = DS207 AbdullahDrive
+   path = /volume1/AbdullahDrive
+   read only = no
+   valid users = @users
+
+# Dedicated Time Machine target (macOS backups over SMB).
+[TimeMachine]
+   comment = DS207 Time Machine
+   path = /volume1/TimeMachine
+   read only = no
+   valid users = @users
+   fruit:time machine = yes
+   # Optional size cap so TM does not fill the volume (in bytes; here 500 GB):
+   fruit:time machine max size = 500G

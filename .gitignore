@@ -1,0 +1,44 @@
+# --- macOS junk ---
+.DS_Store
+._*
+.AppleDouble
+.Spotlight-V100
+.Trashes
+
+# --- Proprietary Synology firmware / packages / docs — NEVER redistribute ---
+*.pat
+*.spk
+*.pdf
+
+# --- Extracted firmware roots (proprietary) & build outputs ---
+DS207/workspace/*_extracted/
+DS207/workspace/toolchain/
+DS207/workspace/assistant/
+DS207/workspace/build/deliverables/
+DS207/workspace/build/samba/
+DS207/workspace/build/ds207_patch/payload/
+DS216/
+
+# --- Binaries / archives / large blobs ---
+*.tgz
+*.tar
+*.tar.gz
+*.zip
+*.exe
+*.dll
+*.so
+*.so.*
+*.a
+*.o
+*.core
+*.dat
+*.mmdb
+
+# --- Compiled test/output binaries (no extension) ---
+*.ppc
+*_ppc
+DS207/workspace/build/sbin/
+DS207/workspace/build/bin/
+
+# --- Logs ---
+*.log

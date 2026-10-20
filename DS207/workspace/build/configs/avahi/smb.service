@@ -1,0 +1,17 @@
+<?xml version="1.0" standalone='no'?>
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+<!-- /usr/syno/etc/avahi/services/smb.service  (stock Avahi 0.6.28 reads this dir)
+     Advertises SMB file sharing so macOS Finder shows the DS207 under "Network". -->
+<service-group>
+  <name replace-wildcards="yes">%h</name>
+  <service>
+    <type>_smb._tcp</type>
+    <port>445</port>
+  </service>
+  <service>
+    <type>_device-info._tcp</type>
+    <port>0</port>
+    <!-- Finder icon: show as a NAS/RackMac. -->
+    <txt-record>model=RackMac</txt-record>
+  </service>
+</service-group>
