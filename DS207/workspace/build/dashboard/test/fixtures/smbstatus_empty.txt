@@ -1,0 +1,8 @@
+"Samba version 4.19.5\n"
+"PID     Username     Group        Machine                                   Protocol Version  Encryption           Signing\n"
+"----------------------------------------------------------------------------------------------------------------------------------------\n"
+"\n"
+"Service      pid     Machine       Connected at                     Encryption   Signing\n"
+"---------------------------------------------------------------------------------------------\n"
+"\n"
+"No locked files\n"
