@@ -112,8 +112,10 @@ int http_parse_request(const char *raw, http_req *out) {
       const char *v = p + 7; size_t vl;
       while (v < le && (*v == ' ' || *v == '\t')) v++;
       vl = (size_t)(le - v);
-      if (vl >= sizeof out->cookie) return -1;
-      memcpy(out->cookie, v, vl); out->cookie[vl] = '\0';
+      size_t cl = strlen(out->cookie), sep = cl ? 2 : 0;   /* duplicate headers: join with "; " */
+      if (cl + sep + vl >= sizeof out->cookie) return -1;
+      if (sep) { out->cookie[cl] = ';'; out->cookie[cl + 1] = ' '; }
+      memcpy(out->cookie + cl + sep, v, vl); out->cookie[cl + sep + vl] = '\0';
     } else if (ll > 15 && ieq(p, "content-length:", 15)) {
       char tmp[24]; const char *v = p + 15; size_t vl; char *end;
       while (v < le && *v == ' ') v++;

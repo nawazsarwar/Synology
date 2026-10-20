@@ -1,8 +1,13 @@
-# Install Guide — DS207 Modern SMB
+# Install Guide — Modern SMB2/SMB3 on a Synology DS207 (DSM 3.1)
+
+> **In one sentence:** Step-by-step guide to install modern Samba (SMB2/SMB3), SSH, and TLS
+> on an end-of-life Synology DS207 over SSH — a safe, reversible overlay that lets Windows 11,
+> macOS, and Linux mount shares again, **without reflashing firmware and with no brick risk.**
 
 This installs **modern Samba (SMB2/SMB3, with Apple Time Machine / Finder support)** on a
-Synology **DS207** running DSM 3.1, so current Windows, macOS, and Linux clients can mount
-shares again.
+Synology **DS207** running DSM 3.1, so current **Windows 11, macOS, and Linux** clients can
+mount network shares again — fixing the common problem where modern computers refuse to
+connect to an old Synology NAS because it only speaks the insecure SMB1 (CIFS) protocol.
 
 > **Safety first.** Nothing in flash (kernel/bootloader) is touched — the box **cannot be
 > bricked**. The stock Samba is never modified; it is only stopped while the modern one runs.
@@ -148,3 +153,24 @@ This removes `/volume1/@modernsmb` and the boot hook and restores stock Samba.
 | Locked out after a bad reboot | The watchdog should have restored stock automatically. Worst case: remove the drive, mount elsewhere, delete `/volume1/@modernsmb/` and `/volume1/startup/S99modernsmb`. |
 
 Logs: `/volume1/@modernsmb/var/modernsmb.log`.
+
+---
+
+## License & disclaimer — no warranty, no liability, use at your own risk
+
+This project is free and open source under the **MIT License**. Being open source and free
+does **not** mean the authors take any ownership, guarantee, or responsibility for what
+happens when you use it. It is provided **as-is, for educational and voluntary personal use
+by anyone who chooses to run it.**
+
+- **No warranty of any kind** — not of fitness, safety, correctness, or that it will work on
+  your hardware at all.
+- **No liability and no responsibility whatsoever** for any issue, bug, data loss, downtime,
+  hardware failure, security incident, or any other damage or loss — direct or indirect —
+  arising in any way from the use of this software or these instructions.
+- Nobody is forcing this on anyone. You install and run it **entirely by your own choice, on
+  your own terms, at your own will, and at your own risk.** If anything goes wrong as a
+  result of using it, that is solely your responsibility.
+
+If you do not accept these terms, do not use this project. See [`LICENSE`](LICENSE) and the
+[`README.md`](README.md) for the full text.
