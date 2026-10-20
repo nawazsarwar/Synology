@@ -174,6 +174,23 @@ label WAN byte-totals as a later enhancement.
   reviewed during implementation.
 - Whether live updates stay on polling or move to SSE (polling is the v1 default).
 
+## Roadmap (phased vision)
+
+The owner's long-term intent is for this custom front-end to **grow slowly into a full
+replacement** for the stock DSM top UI — a real control panel — not stay a read-only
+dashboard forever. It is built in phases so each one is small and provably working before the
+next; the own-port, overlay, stock-untouched architecture is chosen precisely so it can grow
+without ever risking the stock UI, and so we can stop at any phase if it's enough.
+
+- **Phase 1 (this design):** read-only monitoring dashboard, desktop-OS landing. Low risk,
+  low weight, proves the architecture (collector + uiserver + Vue SPA + installer module).
+- **Phase 2 (later, if desired):** control actions (restart our services, disconnect a
+  session, etc.) — introduces authenticated *write* endpoints and privilege boundaries.
+- **Phase 3 (later, if desired):** admin surfaces (users/shares/network) reimplemented against
+  reverse-engineered DSM C-CGI endpoints or our own back-end, moving toward a full console.
+- Growth is opt-in and incremental; Phase 1 stands on its own and the stock DSM UI remains the
+  fallback for everything not yet built.
+
 ## Size
 
 Project (multi-component: a new C server, a Samba tool rebuild, a Vue app, installer wiring).
