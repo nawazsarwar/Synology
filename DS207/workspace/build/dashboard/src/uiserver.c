@@ -224,3 +224,107 @@ int ui_handle(const char *base, const http_req *q, const char *body, size_t blen
   }
   return ui_serve(base, q, fd);
 }
+
+#ifdef UISERVER_MAIN
+/* ---- uiserver main: SINGLE-PROCESS accept loop (auth.c session table and
+ * login throttle are process-global; never fork per connection). ---- */
+#include <signal.h>
+#include <errno.h>
+#include <pwd.h>
+#include <grp.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+#define REQ_HDR_MAX 8192
+
+static void usage(FILE *f) {
+  fputs("usage: uiserver --root <ui dir> [--port 8181] [--user nobody]\n"
+        "  <ui dir> contains www/ and state/\n", f);
+}
+
+static int drop_priv(const char *user) {
+  uid_t uid = 65534; gid_t gid = 65534;
+  struct passwd *pw = getpwnam(user);
+  if (pw) { uid = pw->pw_uid; gid = pw->pw_gid; }
+  if (setgroups(0, NULL) != 0) return -1;
+  if (setgid(gid) != 0) return -1;
+  if (setuid(uid) != 0) return -1;
+  /* verify the drop is irreversible */
+  if (getuid() == 0 || geteuid() == 0 || getgid() == 0) return -1;
+  if (setuid(0) != -1) return -1;
+  return 0;
+}
+
+/* Read headers (+ declared body, capped). Returns 0 ok, -1 drop connection. */
+static int read_request(int fd, char *buf, size_t cap, http_req *q,
+                        char **body, size_t *blen) {
+  size_t len = 0, hdr_end = 0;
+  while (!hdr_end) {
+    ssize_t r;
+    if (len >= cap - 1) return -1;
+    r = recv(fd, buf + len, cap - 1 - len, 0);
+    if (r <= 0) return -1;            /* EOF, error or SO_RCVTIMEO */
+    len += (size_t)r; buf[len] = 0;
+    { char *p = strstr(buf, "\r\n\r\n"); if (p) hdr_end = (size_t)(p - buf) + 4; }
+  }
+  if (http_parse_request(buf, q) != 0) return -1;
+  *body = buf + hdr_end; *blen = len - hdr_end;
+  if (q->content_length > 0) {
+    if (!ui_body_ok(q->content_length)) { *blen = (size_t)UI_MAX_BODY + 1; return 0; }
+    if (hdr_end + (size_t)q->content_length >= cap) return -1;
+    while (*blen < (size_t)q->content_length) {
+      ssize_t r = recv(fd, buf + hdr_end + *blen, (size_t)q->content_length - *blen, 0);
+      if (r <= 0) return -1;
+      *blen += (size_t)r;
+    }
+    *blen = (size_t)q->content_length;
+  } else if (!ui_body_ok(q->content_length)) { *blen = (size_t)UI_MAX_BODY + 1; }
+  else *blen = 0;
+  return 0;
+}
+
+int main(int argc, char **argv) {
+  const char *root = NULL, *user = "nobody";
+  int port = 8181, i, ls, one = 1;
+  struct sockaddr_in sa;
+  static char buf[REQ_HDR_MAX + UI_MAX_BODY + 16];
+
+  for (i = 1; i < argc; i++) {
+    if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h")) { usage(stdout); return 0; }
+    else if (!strcmp(argv[i], "--root") && i + 1 < argc) root = argv[++i];
+    else if (!strcmp(argv[i], "--port") && i + 1 < argc) port = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--user") && i + 1 < argc) user = argv[++i];
+    else { usage(stderr); return 2; }
+  }
+  if (!root || port < 1 || port > 65535) { usage(stderr); return 2; }
+
+  signal(SIGPIPE, SIG_IGN);
+  ls = socket(AF_INET, SOCK_STREAM, 0);
+  if (ls < 0) { perror("socket"); return 1; }
+  setsockopt(ls, SOL_SOCKET, SO_REUSEADDR, &one, sizeof one);
+  memset(&sa, 0, sizeof sa);
+  sa.sin_family = AF_INET; sa.sin_addr.s_addr = htonl(INADDR_ANY);
+  sa.sin_port = htons((unsigned short)port);
+  if (bind(ls, (struct sockaddr *)&sa, sizeof sa) != 0) { perror("bind"); return 1; }
+  if (listen(ls, 16) != 0) { perror("listen"); return 1; }
+
+  if (drop_priv(user) != 0) { fputs("uiserver: privilege drop failed\n", stderr); abort(); }
+
+  for (;;) {
+    http_req q; char *body = NULL; size_t blen = 0;
+    struct timeval tv;
+    int c = accept(ls, NULL, NULL);
+    if (c < 0) { if (errno == EINTR) continue; usleep(100000); continue; }
+    tv.tv_sec = 5; tv.tv_usec = 0;
+    setsockopt(c, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);
+    setsockopt(c, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof tv);
+    memset(&q, 0, sizeof q);
+    if (read_request(c, buf, sizeof buf, &q, &body, &blen) == 0)
+      ui_handle(root, &q, body, blen, c);
+    close(c);
+  }
+}
+#endif

@@ -15,10 +15,10 @@ test-native:
 
 collector:
 	@mkdir -p $(BIN)
-	$(CC) $(CFLAGS) -I src -o $(BIN)/collector $(SRCS)
+	$(CC) $(CFLAGS) -I src -o $(BIN)/collector $(filter-out src/uiserver.c src/auth.c src/http.c,$(SRCS))
 
 build-ppc:
-	sh scripts/build_dashboard_ppc.sh
+	docker run --rm -v $(abspath ../..):/w -v ds207vol:/out ds207-zig bash /w/build/scripts/build_dashboard_ppc.sh
 
 clean:
 	rm -rf $(BIN)
