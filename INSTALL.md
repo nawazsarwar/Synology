@@ -23,11 +23,10 @@ shares again.
 ## Step 1 — Download the bundle
 
 Download the installer onto a **normal computer** (not the NAS — the NAS's 2014 TLS can't
-reach GitHub) from the project's **GitHub Releases** page:
+reach GitHub). The bundle ships **inside this repo**:
 
-- Releases: https://github.com/nawazsarwar/Synology/releases
-- Latest file: **`ds207-modern-0.2.1.tar.gz`**
-  (direct link: https://github.com/nawazsarwar/Synology/releases/download/v0.2.1/ds207-modern-0.2.1.tar.gz)
+- In the repo: [`releases/ds207-modern-0.2.1.tar.gz`](releases/ds207-modern-0.2.1.tar.gz)
+- Direct download: https://github.com/nawazsarwar/Synology/raw/main/releases/ds207-modern-0.2.1.tar.gz
 
 Optional — verify the download (recommended):
 

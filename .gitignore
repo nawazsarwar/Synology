@@ -50,3 +50,9 @@ DS207/workspace/build/installer/*.zip
 
 # --- Logs ---
 *.log
+
+# --- Shipped release assets (committed in-repo, linked from INSTALL.md) ---
+# The general *.tar.gz / installer rules above keep build artifacts out of git;
+# this carve-out re-includes only the published installer bundles under releases/
+# (not macOS ._ junk, which the rules at the top still ignore).
+!releases/*.tar.gz
