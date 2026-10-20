@@ -179,7 +179,7 @@ static int snap_sessions(const char *dir, char *out) {
 static int snap_services(const char *dir, char *out) {
   static const struct { const char *name; const char *proc; int port; tool_id ver; } S[] = {
     { "smbd", "smbd", 445, TOOL_VER_SMBD }, { "nmbd", "nmbd", 139, TOOL_COUNT },
-    { "afpd", "afpd", 548, TOOL_COUNT },    { "ssh", "dropbear", 22, TOOL_VER_SSH },
+    { "afpd", "afpd", 548, TOOL_COUNT },    { "ssh", "dropbear", 2222, TOOL_VER_SSH },
   };
   enum { N = 4 };
   svc_probe p[N]; char *ver[N]; int i, n;
