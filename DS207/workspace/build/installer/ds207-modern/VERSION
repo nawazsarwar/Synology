@@ -6,3 +6,5 @@ curl: 8.5.0 + mbedTLS 3.6.2 (TLS 1.2)
 dashboard: collector + uiserver (read-only, :8181, LAN-only, login-protected) + Vue SPA
 built: 2026-10-21
 note: Dropbear hardened to pubkey-only (-s -g); v0.3.0 adds the monitoring dashboard
+      (redesigned UI: design system, fluid responsive grid, dark/light/auto theme,
+      services version + port)
