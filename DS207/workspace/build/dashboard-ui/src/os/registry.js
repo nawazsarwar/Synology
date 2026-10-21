@@ -28,7 +28,7 @@ export const WIDGETS = [
   { id: 'storage', title: 'Storage & RAID', icon: 'storage', comp: StorageTile, wide: true },
   { id: 'net', title: 'Network', icon: 'network', comp: NetTile },
   { id: 'diskio', title: 'Disk activity', icon: 'disk', comp: DiskIoTile },
-  { id: 'services', title: 'Services', icon: 'server', comp: ServicesTile },
+  { id: 'services', title: 'Services', icon: 'server', comp: ServicesTile, rowstart: true },
   { id: 'sessions', title: 'Sessions', icon: 'users', comp: SessionsTile },
   { id: 'files', title: 'Open files', icon: 'file', comp: FilesTile },
   { id: 'wan', title: 'Beyond LAN', icon: 'shield', comp: WanTile }

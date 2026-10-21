@@ -256,6 +256,10 @@
 .win.sessions, .win.services, .win.files, .win.wan { --win-min: 230px; }
 .win.is-wide { grid-column: span 2; }
 @media (max-width: 719px) { .win.is-wide { grid-column: auto; } }
+/* Forces this widget to begin a fresh grid row (column 1) whatever the column
+   count — so Services always leads the bottom row instead of trailing the one
+   above. A no-op in the single-column layout. */
+.win.is-rowstart { grid-column-start: 1; }
 .win.is-collapsed { min-height: 0; align-self: start; }
 .win.is-alarm { position: relative; border-color: color-mix(in srgb, var(--c-bad) 55%, var(--c-line)); }
 .win.is-alarm::before {

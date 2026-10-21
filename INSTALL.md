@@ -38,7 +38,7 @@ Optional — verify the download (recommended):
 ```sh
 shasum -a 256 ds207-modern-0.3.0.tar.gz
 # expected:
-# 54e4f7c55486dd11ea2059c27d1a98350cd5cd40d88b1fd063ef4eeaccd0495a
+# 0e8e1e2d168c474d156e06636bc18de1be7349d1fd7f2e6e7e7d8f41533fea8b
 ```
 
 > **What's in v0.3.0:** modern Samba (SMB2/SMB3 + Apple vfs_fruit), Dropbear SSH

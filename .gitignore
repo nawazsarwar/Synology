@@ -60,6 +60,9 @@ DS207/workspace/build/installer/*.zip
 # this carve-out re-includes only the published installer bundles under releases/
 # (not macOS ._ junk, which the rules at the top still ignore).
 !releases/*.tar.gz
+# ...but never the macOS AppleDouble junk (the carve-out above would otherwise
+# re-include `releases/._*.tar.gz`, since it matches *.tar.gz).
+releases/._*
 DS207/workspace/build/dashboard/ppc/
 
 # dashboard UI

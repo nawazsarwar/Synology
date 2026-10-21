@@ -53,7 +53,7 @@ const toggleCollapse = (id) => { collapsed[id] = !collapsed[id] }
     <main class="desktop">
       <section
         v-for="w in WIDGETS" :key="w.id"
-        :class="['win', w.id, { 'is-alarm': isAlarm(w.id), 'is-wide': w.wide, 'is-collapsed': collapsed[w.id] }]"
+        :class="['win', w.id, { 'is-alarm': isAlarm(w.id), 'is-wide': w.wide, 'is-rowstart': w.rowstart, 'is-collapsed': collapsed[w.id] }]"
       >
         <div class="win__bar">
           <Led v-if="isAlarm(w.id)" state="bad" pulse />
