@@ -30,21 +30,22 @@ connect to an old Synology NAS because it only speaks the insecure SMB1 (CIFS) p
 Download the installer onto a **normal computer** (not the NAS — the NAS's 2014 TLS can't
 reach GitHub). The bundle ships **inside this repo**:
 
-- In the repo: [`releases/ds207-modern-0.3.0.tar.gz`](releases/ds207-modern-0.3.0.tar.gz)
-- Direct download: https://github.com/nawazsarwar/Synology/raw/main/releases/ds207-modern-0.3.0.tar.gz
+- In the repo: [`releases/ds207-modern-0.3.1.tar.gz`](releases/ds207-modern-0.3.1.tar.gz)
+- Direct download: https://github.com/nawazsarwar/Synology/raw/main/releases/ds207-modern-0.3.1.tar.gz
 
 Optional — verify the download (recommended):
 
 ```sh
-shasum -a 256 ds207-modern-0.3.0.tar.gz
+shasum -a 256 ds207-modern-0.3.1.tar.gz
 # expected:
-# 0e8e1e2d168c474d156e06636bc18de1be7349d1fd7f2e6e7e7d8f41533fea8b
+# 74e2d901dad7b758d658d80e38fb871cc704e1e952fab7416037c213ee9232a2
 ```
 
-> **What's in v0.3.0:** modern Samba (SMB2/SMB3 + Apple vfs_fruit), Dropbear SSH
+> **What's in v0.3.1:** modern Samba (SMB2/SMB3 + Apple vfs_fruit), Dropbear SSH
 > (pubkey-only, port 2222), a self-contained modern curl + TLS, and the read-only
-> **monitoring dashboard** (web UI on port 8181 — redesigned interface: design system,
-> fluid responsive grid, dark/light/auto theme, service version + port). See the Optional
+> **monitoring dashboard** (web UI on port 8181 — design system, fluid responsive grid,
+> dark/light/auto theme, service version + port, a DSM 3.1 control-panel link, and
+> Services leading its own row). Binaries are unchanged from 0.3.0. See the Optional
 > modules section below.
 
 ## Step 2 — Copy it to the NAS
