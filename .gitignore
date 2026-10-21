@@ -45,14 +45,24 @@ DS207/workspace/build/installer/ds207-modern/payload/sbin/
 DS207/workspace/build/installer/ds207-modern/payload/ssh/
 DS207/workspace/build/installer/ds207-modern/payload/bin/
 DS207/workspace/build/installer/ds207-modern/payload/ssl/
+DS207/workspace/build/installer/ds207-modern/payload/ui/
 DS207/workspace/build/installer/*.tar.gz
 DS207/workspace/build/installer/*.zip
 
 # --- Logs ---
 *.log
 
+# --- Browser-automation scratch (Playwright MCP screenshots/console logs) ---
+.playwright-mcp/
+
 # --- Shipped release assets (committed in-repo, linked from INSTALL.md) ---
 # The general *.tar.gz / installer rules above keep build artifacts out of git;
 # this carve-out re-includes only the published installer bundles under releases/
 # (not macOS ._ junk, which the rules at the top still ignore).
 !releases/*.tar.gz
+DS207/workspace/build/dashboard/ppc/
+
+# dashboard UI
+DS207/workspace/build/dashboard-ui/node_modules/
+DS207/workspace/build/dashboard-ui/dist/
+DS207/workspace/build/dashboard/www/

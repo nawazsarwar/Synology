@@ -1,0 +1,206 @@
+/* =============================================================================
+   DS207 OS — Design Tokens (the enduring baseline)
+   -----------------------------------------------------------------------------
+   This file is the single source of truth for the whole application's visual
+   language. Every screen in every phase (monitoring now; controls and the full
+   admin console later) MUST consume these tokens and never hard-code a raw
+   color, size, or timing. Re-theming the product — or adding a light theme —
+   means editing values here, not rewriting components.
+
+   Tokens are grouped: palette (raw) -> semantic (role) -> component hooks.
+   Components reference semantic tokens, not raw palette values.
+   ========================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  /* --- Typography --------------------------------------------------------- */
+  --font-ui: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Type scale (~1.25 modular). Display is for hero vitals only. */
+  --fs-display: 42px;
+  --fs-h1: 27px;
+  --fs-h2: 20px;
+  --fs-h3: 16px;
+  --fs-body: 14px;
+  --fs-sm: 12.5px;
+  --fs-xs: 11px;
+  --fs-micro: 10px;
+
+  --fw-reg: 400;
+  --fw-med: 500;
+  --fw-semi: 600;
+  --fw-bold: 700;
+  --fw-black: 800;
+
+  --lh-tight: 1.05;
+  --lh-snug: 1.25;
+  --lh-body: 1.45;
+
+  --tracking-wide: 0.06em;   /* reserved for genuine short legends, used sparingly */
+
+  /* --- Spacing (4px base) ------------------------------------------------- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+
+  /* --- Radius ------------------------------------------------------------- */
+  --r-sm: 7px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-pill: 999px;
+
+  /* --- Raw palette -------------------------------------------------------- */
+  /* Cool graphite-blue family — real chroma, never neutral tinted-black. */
+  --p-graphite-900: #080F17;
+  --p-graphite-850: #0A121B;
+  --p-graphite-800: #0D1823;
+  --p-graphite-700: #11202E;
+  --p-graphite-650: #142636;
+  --p-graphite-600: #1A3042;
+  --p-steel-500: #22394D;
+  --p-steel-400: #30485F;
+  --p-steel-300: #3F5A72;
+
+  --p-ink-100: #EAF2F9;
+  --p-ink-200: #DCE8F2;
+  --p-ink-400: #9FB4C6;
+  --p-ink-500: #7C95A8;
+  --p-ink-600: #627A8C;
+
+  /* Brand = interactive cyan-teal (focus, primary action, selection). */
+  --p-brand-400: #58D3E8;
+  --p-brand-500: #3BC8E0;
+  --p-brand-600: #27A6BE;
+
+  /* Status (state is information — the monitor's whole job). */
+  --p-jade-400: #4BE0AC;
+  --p-jade-500: #32D296;   /* nominal / alive */
+  --p-amber-500: #F0B23A;  /* caution */
+  --p-red-400: #FF6B7E;
+  --p-red-500: #FF5069;    /* alarm */
+
+  /* Data-series hues for charts (muted so a real alarm always reads loudest). */
+  --series-1: #3BC8E0;
+  --series-2: #32D296;
+  --series-3: #F0B23A;
+  --series-4: #9B8CFF;
+
+  /* --- Semantic surfaces -------------------------------------------------- */
+  --c-desktop: var(--p-graphite-850);
+  --c-desktop-2: var(--p-graphite-800);
+  --c-surface: var(--p-graphite-700);
+  --c-surface-2: var(--p-graphite-650);
+  --c-surface-3: var(--p-graphite-800);        /* inputs / wells */
+  --c-glass: rgba(11, 19, 28, 0.72);           /* top bar + dock, over backdrop blur */
+  --c-glass-brd: rgba(150, 190, 225, 0.10);
+
+  --c-line: var(--p-steel-500);
+  --c-line-strong: var(--p-steel-400);
+  --c-inset-hi: rgba(150, 190, 225, 0.07);     /* 1px inner top highlight = material depth */
+  --c-track: rgba(130, 165, 195, 0.14);        /* gauge/meter empty track */
+
+  /* --- Semantic ink ------------------------------------------------------- */
+  --c-ink: var(--p-ink-200);
+  --c-ink-strong: var(--p-ink-100);
+  --c-ink-dim: var(--p-ink-400);
+  --c-ink-mute: var(--p-ink-500);
+  --c-ink-faint: var(--p-ink-600);
+
+  /* --- Semantic roles ----------------------------------------------------- */
+  --c-brand: var(--p-brand-500);
+  --c-brand-hi: var(--p-brand-400);
+  --c-brand-deep: var(--p-brand-600);
+  --c-focus: var(--p-brand-400);
+
+  --c-ok: var(--p-jade-500);
+  --c-warn: var(--p-amber-500);
+  --c-bad: var(--p-red-500);
+  --c-bad-hi: var(--p-red-400);
+  --c-ok-soft: rgba(50, 210, 150, 0.14);
+  --c-warn-soft: rgba(240, 178, 58, 0.16);
+  --c-bad-soft: rgba(255, 80, 105, 0.14);
+  --c-brand-soft: rgba(59, 200, 224, 0.14);
+  --c-on-accent: #04121A;                       /* text on brand/jade fills */
+
+  /* --- Elevation ---------------------------------------------------------- */
+  --e-inset: inset 0 1px 0 var(--c-inset-hi);
+  --e-1: inset 0 1px 0 var(--c-inset-hi), 0 2px 10px rgba(0, 0, 0, 0.35);
+  --e-2: inset 0 1px 0 var(--c-inset-hi), 0 20px 46px -8px rgba(0, 0, 0, 0.60);
+  --e-chrome: 0 10px 34px -6px rgba(0, 0, 0, 0.55);
+  --e-focus: 0 0 0 2px var(--c-desktop), 0 0 0 4px var(--c-focus);
+
+  /* --- Motion ------------------------------------------------------------- */
+  --motion-fast: 120ms;
+  --motion: 200ms;
+  --motion-slow: 420ms;
+  --ease: cubic-bezier(0.2, 0.6, 0.2, 1);
+
+  /* --- Z-layers ----------------------------------------------------------- */
+  --z-desktop: 1;
+  --z-window: 10;        /* window stack grows from here via JS */
+  --z-chrome: 4000;      /* top bar + dock sit above all windows */
+  --z-modal: 6000;
+  --z-toast: 7000;
+
+  /* --- Layout ------------------------------------------------------------- */
+  --topbar-h: 46px;
+  --dock-h: 60px;
+  --desk-gutter: 20px;
+  --desk-gap: 16px;
+}
+
+/* =============================================================================
+   Light theme. The app resolves dark/light/auto in JS (os/theme.js) and sets
+   data-theme="light|dark" on <html>, so only this single override block is
+   needed — no media-query duplication. Raw palette and non-color tokens are
+   inherited from :root; we re-point the semantic layer to light values.
+   ========================================================================== */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --c-desktop: #E7ECF1;
+  --c-desktop-2: #EEF2F6;
+  --c-surface: #FFFFFF;
+  --c-surface-2: #F3F6FA;
+  --c-surface-3: #EDF2F7;
+  --c-glass: rgba(255, 255, 255, 0.74);
+  --c-glass-brd: rgba(20, 50, 80, 0.10);
+
+  --c-line: #DEE5EC;
+  --c-line-strong: #C6D1DC;
+  --c-inset-hi: rgba(255, 255, 255, 0.9);
+  --c-track: rgba(30, 55, 80, 0.12);
+
+  --c-ink: #223240;
+  --c-ink-strong: #0F1C27;
+  --c-ink-dim: #4C6072;
+  --c-ink-mute: #6B7F90;
+  --c-ink-faint: #93A4B3;
+
+  --c-brand: #1AA6BF;
+  --c-brand-hi: #14B0CC;
+  --c-brand-deep: #0E8296;
+  --c-focus: #1AA6BF;
+
+  --c-ok: #12A06E;
+  --c-warn: #B5801B;
+  --c-bad: #E0394F;
+  --c-bad-hi: #C21F35;
+  --c-ok-soft: rgba(18, 160, 110, 0.14);
+  --c-warn-soft: rgba(181, 128, 27, 0.16);
+  --c-bad-soft: rgba(224, 57, 79, 0.12);
+  --c-brand-soft: rgba(26, 166, 191, 0.14);
+  --c-on-accent: #FFFFFF;
+
+  --e-inset: inset 0 1px 0 var(--c-inset-hi);
+  --e-1: inset 0 1px 0 var(--c-inset-hi), 0 1px 3px rgba(20, 45, 75, 0.10), 0 6px 16px -10px rgba(20, 45, 75, 0.22);
+  --e-2: inset 0 1px 0 var(--c-inset-hi), 0 16px 40px -12px rgba(20, 45, 75, 0.28);
+  --e-chrome: 0 10px 30px -8px rgba(20, 45, 75, 0.22);
+}

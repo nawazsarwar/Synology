@@ -1,0 +1,79 @@
+/* =============================================================================
+   DS207 OS — Base layer: reset, desktop canvas, typography, a11y defaults.
+   Depends on tokens.css. No component styling lives here.
+   ========================================================================== */
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html, body, #app { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-weight: var(--fw-reg);
+  color: var(--c-ink);
+  background-color: var(--c-desktop);
+  /* The wallpaper: deep graphite lit by two soft, far-off light sources — one
+     cool, one warm — for quiet depth. No grid, no texture, no busywork. */
+  background-image:
+    radial-gradient(90% 70% at 12% -15%, rgba(59, 200, 224, 0.11), transparent 60%),
+    radial-gradient(85% 75% at 108% 112%, rgba(50, 210, 150, 0.08), transparent 60%),
+    linear-gradient(180deg, var(--c-desktop-2), var(--c-desktop) 55%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;              /* the shell owns scrolling, per region */
+}
+
+/* Light wallpaper: the same two soft light sources, tuned for a pale canvas. */
+:root[data-theme="light"] body {
+  background-image:
+    radial-gradient(90% 70% at 12% -15%, rgba(26, 166, 191, 0.09), transparent 60%),
+    radial-gradient(85% 75% at 108% 112%, rgba(18, 160, 110, 0.06), transparent 60%),
+    linear-gradient(180deg, #EEF2F6, #E4E9EF 55%);
+}
+
+h1, h2, h3, h4, p { margin: 0; }
+
+button { font-family: inherit; }
+
+/* Numbers everywhere should align: tabular figures by default on data. */
+.num, .mono { font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--font-mono); font-feature-settings: 'tnum' 1, 'zero' 1; }
+
+.dim { color: var(--c-ink-dim); }
+.mute { color: var(--c-ink-mute); }
+.faint { color: var(--c-ink-faint); }
+
+/* Focus: visible, branded, keyboard-only. */
+:focus { outline: none; }
+:focus-visible {
+  outline: none;
+  box-shadow: var(--e-focus);
+  border-radius: var(--r-sm);
+}
+
+/* Custom scrollbars so inner regions match the instrument surface. */
+* { scrollbar-width: thin; scrollbar-color: var(--p-steel-400) transparent; }
+*::-webkit-scrollbar { width: 9px; height: 9px; }
+*::-webkit-scrollbar-thumb {
+  background: var(--p-steel-400);
+  border-radius: var(--r-pill);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--p-steel-300); }
+
+::selection { background: var(--c-brand-soft); color: var(--c-ink-strong); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

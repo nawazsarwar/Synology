@@ -1,6 +1,6 @@
 # DS207 Modernization — Project Log & Documentation
 
-**Last updated:** 2026-10-20
+**Last updated:** 2026-10-21
 **Status:** Prototype built and deployed to hardware; deployment caused an out-of-memory (OOM) condition on the 64 MB device; recovering the NAS by reinstalling stock DSM via the reset button (Mode 2). Core finding: **Samba 4 as-built is too heavy for 64 MB RAM.**
 
 This document is the running trail of the whole effort. Companion documents:
@@ -455,3 +455,98 @@ existing SMB and DSM services untouched.
 
 **Verdict:** all three modules are stable under abuse and coexist cleanly with stock DSM
 services. No hang, crash, leak, or regression observed.
+
+---
+
+## Trial 5 — Monitoring dashboard (2026-10-21)
+
+**What was built (bundle v0.3.0 adds the dashboard).** A read-only, LAN-only monitoring
+dashboard, installed as installer option 7 / `install.sh ui`, independent of Samba:
+- `collector` (root, no socket) — loops every 2 s, parses `/proc` + whitelisted tools
+  (smartctl, mdstat, smbstatus, netstat) and writes `ui/state/*.json` with atomic rename.
+  SMART (`disks.json`) is refreshed on a 5-minute cadence only.
+- `uiserver` (drops to `nobody`, port 8181) — static files + `/api/*` snapshots, password
+  login (salted SHA-256, cookie session, rate-limited), path-traversal-safe file serving.
+- Vue 3 SPA (`dashboard-ui`, built to `dashboard/www`) — draggable tiles incl. WAN tile.
+- Both daemons are static PPC (musl, zig cc, qemu-verified on `-r 2.6.24`). No watchdog:
+  a UI crash never touches Samba. Boot: `S99modernsmb` -> `modernsmb.sh boot` -> `ui_start`.
+- Release tarball NOT rebuilt here (user handles releases).
+
+**Battery (on the real DS207, 192.168.1.11).** `scripts/dashboard_battery.sh` (asserting, non-zero exit on failure; needs `DASH_PW`) automates only the HTTP-level checks: auth 401s, traversal, junk flood, concurrent clients, snapshot integrity. The privilege, resource, SMART-cadence, kill-9-no-Samba-revert, DSM/SMB/SSH/curl regression and uninstall/reinstall checks were run BY HAND over SSH.
+
+| Test | Result |
+|---|---|
+| Unauth `GET /api/system`, `/api/wan` | PASS (401, 401) |
+| Traversal `/..%2f..%2fetc/passwd`, `/../../etc/shadow`, `/%2e%2e/...`, `/assets/../../../etc/passwd` (unauth) | PASS (302 to login, no file content) |
+| Same traversals, authed | PASS (404, no `root:` lines) |
+| 6x random-byte flood + 20 KB junk request line to :8181 | PASS (uiserver survived; `/` 200; authed `/api/system` 200) |
+| 4 concurrent authed clients x 5 requests | PASS (all 200) |
+| Snapshot-during-write, 60 fetches while collector loops | PASS (0 truncated/invalid) |
+| Bogus `/api/doesnotexist` | PASS (404; SPA error is per-poll and clears on next success, no permanent offline) |
+| Privilege | PASS (`uiserver` = nobody, `collector` = root; only uiserver listens on 8181, collector has no socket) |
+| Resource, 4 min polling @ 2 s | PASS (collector RSS 140-144 kB, uiserver 152 kB; load avg 0.03-0.22; CPU mostly idle; free RAM ~5-6 MB + 20 MB cache, unchanged) |
+| SMART cache cadence | PASS (`disks.json` rewritten 03:13 -> 03:18, i.e. 5 min; no smartctl seen running between) |
+| `/api/wan` | PASS (JSON; collector now writes `wan.json`; no longer 404) |
+| `layout.js` DEFAULTS has `wan` | PASS |
+| DSM :5000 and :80 | PASS (302) |
+| SMB (445, 4 shares via `smbutil`), Dropbear 2222, modern curl HTTPS | PASS |
+| No `/volume1/*.core` | PASS |
+| `kill -9 uiserver` | PASS (modern smbd untouched, 445 listening, `.disabled` absent; `ui-start` brought UI back, `/` 200) |
+| `install.sh uninstall` | PASS (`@modernsmb` + boot hook removed, stock smbd/nmbd running, DSM :5000 fine) |
+| Full reinstall (SMB + curl + ui + ssh), dashboard password re-set | PASS (all RUNNING; battery re-run clean) |
+| Leftover `/volume1/@bundle` test bundle | Deleted |
+
+**Notes / lessons.**
+- `uninstall` kills Dropbear (including the SSH session on :2222 that ran it) and the reinstall
+  generates a NEW Dropbear host key. Run uninstall/reinstall from DSM's own SSH on :22 (or
+  expect to reconnect and clear the stale `known_hosts` entry for `[NAS]:2222`).
+- Boot persistence was verified by inspection (S99modernsmb -> `modernsmb.sh boot` ->
+  backgrounded `ui_start`, no watchdog) and by running `ui-start`; the box was NOT
+  power-cycled. A real power-cycle is the recommended final user check.
+
+---
+
+## Trial 6 — Dashboard front-end redesign (2026-10-21)
+
+Trial 5 proved the dashboard's architecture (collector + uiserver + Vue SPA + installer
+module), but its front-end was a plain draggable-tile layout that the owner judged unpolished
+and not fit to be the enduring baseline for the later phases. This trial is the front-end
+redesign — the visual and structural baseline all future phases build on — built, deployed to
+the real DS207, and verified live.
+
+![DS207 modern monitoring dashboard — as shipped](images/DS207-modern-interface.png)
+
+**What changed.**
+- **Design system, not a skin.** The SPA was restructured onto a self-contained design system:
+  design tokens (palette, type scale, spacing, radius, elevation, motion), a base layer, a
+  shared component stylesheet, a dependency-free primitive library (Icon, Led, Badge, Stat,
+  Gauge, Meter, Sparkline) and an app-shell layer (TopBar, Dock, theme controller, widget
+  registry). This is the baseline Phases 2–3 extend without re-designing.
+- **Fluid CSS grid replaced draggable tiles.** The freeform drag/absolute model fought
+  responsiveness; the layout is now a native CSS grid that reflows 4 → 3 → 2 → 1 columns by
+  viewport width with no JavaScript and no horizontal overflow. (Per-browser layout persistence
+  dropped for v1; drag-reorder can return later.)
+- **Dark / light / auto theme switcher** (user menu), resolved before first paint, follows the
+  OS on auto, persisted in `localStorage`.
+- **Login redesigned + username field** (default `admin`), self-hosted fonts (Archivo + IBM
+  Plex Mono, no CDN). Multi-user auth backend still deferred — the username is cosmetic in v1
+  (single shared password).
+- **Services tile shows version + port** (smbd/nmbd `4.15.13`, afpd, ssh `Dropbear v2022.83`
+  with its port); `nmbd` inherits smbd's Samba version; the dropbear probe calls
+  `dropbearmulti dropbear -V`.
+- **`uiserver` no longer serves a hardcoded HTML login.** It now serves the SPA publicly and
+  gates only `/api/*` (401 unauth); the Vue SPA renders its own login and POSTs `/api/login`.
+  (The baked-in C login was the bare page the owner rejected, and it had been masking the
+  redesigned SPA login entirely.)
+
+**Verified live (192.168.1.11:8181).** Real-time CPU/mem/load tick ~2 s; network and disk-I/O
+sparklines scroll; responsive reflow confirmed at 1920 / 1512 / 1300 / 1000 / 600 px; all three
+themes confirmed in-browser; services show live version + port. 28 Vue component tests + the
+full native C suite pass. A www file-permission fix was applied on the box (`chmod -R a+rX`;
+the `nobody` server could not read owner-mode-0700 uploads).
+
+**Still open.** Multi-user auth backend (username cosmetic for now); the shippable installer
+must `chmod -R a+rX` the staged `www/` and bundle the redesigned binaries + SPA (live box fixed,
+installer payload update pending). Documentation updated: `workspace/build/README.md` gains a
+Monitoring-dashboard section with the screenshot; `documents/WEBUI_DASHBOARD_DESIGN.md` gains an
+As-implemented addendum.

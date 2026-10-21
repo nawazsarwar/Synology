@@ -24,3 +24,7 @@ Always execute your work in the following structured phases:
   - *Tier A (Configuration & Native Capability Unlock):* Check if the stock DSM 3.1 `smbd` (Samba 3.6.x) already contains compiled-in `SMB2` support that is simply disabled in `/usr/syno/etc/smb.conf` and `/usr/syno/etc.defaults/smb.conf`.
   - *Tier B (Cross-Compilation & Surgical Injection):* Build a Dockerized cross-compilation environment to compile static, stripped binaries for **Samba (with SMB2/SMB3 + `vfs_fruit` for Apple clients)**, **Avahi/mDNSResponder** (so macOS discovers the NAS natively over SMB + Time Machine without needing legacy AFP), and **Dropbear SSH** (modern Ed25519/Curve25519).
 - **Phase 5: Packaging, Checksum Signing & Testing:** Inject the modernized binaries and startup scripts into `hda1.tgz` (preserving fallback stock binaries as `.orig` so the DSM Web UI never breaks), recalculate `checksum.syno`, repackage the custom `.pat` file, and verify all daemons inside QEMU.
+
+## 4. Git Commit Policy
+- Never add a `Co-Authored-By` trailer to git commits.
+- Never mention Claude (or Claude Code) as a co-author or author of any commit.

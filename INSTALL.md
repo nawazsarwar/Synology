@@ -1,8 +1,13 @@
-# Install Guide — DS207 Modern SMB
+# Install Guide — Modern SMB2/SMB3 on a Synology DS207 (DSM 3.1)
+
+> **In one sentence:** Step-by-step guide to install modern Samba (SMB2/SMB3), SSH, and TLS
+> on an end-of-life Synology DS207 over SSH — a safe, reversible overlay that lets Windows 11,
+> macOS, and Linux mount shares again, **without reflashing firmware and with no brick risk.**
 
 This installs **modern Samba (SMB2/SMB3, with Apple Time Machine / Finder support)** on a
-Synology **DS207** running DSM 3.1, so current Windows, macOS, and Linux clients can mount
-shares again.
+Synology **DS207** running DSM 3.1, so current **Windows 11, macOS, and Linux** clients can
+mount network shares again — fixing the common problem where modern computers refuse to
+connect to an old Synology NAS because it only speaks the insecure SMB1 (CIFS) protocol.
 
 > **Safety first.** Nothing in flash (kernel/bootloader) is touched — the box **cannot be
 > bricked**. The stock Samba is never modified; it is only stopped while the modern one runs.
@@ -25,19 +30,21 @@ shares again.
 Download the installer onto a **normal computer** (not the NAS — the NAS's 2014 TLS can't
 reach GitHub). The bundle ships **inside this repo**:
 
-- In the repo: [`releases/ds207-modern-0.2.1.tar.gz`](releases/ds207-modern-0.2.1.tar.gz)
-- Direct download: https://github.com/nawazsarwar/Synology/raw/main/releases/ds207-modern-0.2.1.tar.gz
+- In the repo: [`releases/ds207-modern-0.3.0.tar.gz`](releases/ds207-modern-0.3.0.tar.gz)
+- Direct download: https://github.com/nawazsarwar/Synology/raw/main/releases/ds207-modern-0.3.0.tar.gz
 
 Optional — verify the download (recommended):
 
 ```sh
-shasum -a 256 ds207-modern-0.2.1.tar.gz
+shasum -a 256 ds207-modern-0.3.0.tar.gz
 # expected:
-# 6b7c0159a584ada34798880695f26c2f384ee8c504dd36f9a88dd845c706e3b7
+# 54e4f7c55486dd11ea2059c27d1a98350cd5cd40d88b1fd063ef4eeaccd0495a
 ```
 
-> **What's in v0.2.1:** modern Samba (SMB2/SMB3 + Apple vfs_fruit), Dropbear SSH
-> (pubkey-only, port 2222), and a self-contained modern curl + TLS. See the Optional
+> **What's in v0.3.0:** modern Samba (SMB2/SMB3 + Apple vfs_fruit), Dropbear SSH
+> (pubkey-only, port 2222), a self-contained modern curl + TLS, and the read-only
+> **monitoring dashboard** (web UI on port 8181 — redesigned interface: design system,
+> fluid responsive grid, dark/light/auto theme, service version + port). See the Optional
 > modules section below.
 
 ## Step 2 — Copy it to the NAS
@@ -112,6 +119,14 @@ that its ancient system curl/wget cannot. It does not touch the system curl. Exa
 /volume1/@modernsmb/bin/curl --cacert /volume1/@modernsmb/ssl/cacert.pem https://example.com
 ```
 
+**7) Modern monitoring dashboard** — a small web dashboard (CPU, memory, load, storage, disk
+health, network, services, SMB sessions, WAN connections) served by the NAS itself. Pick it
+from the menu or run `sh install.sh ui`. The installer asks you to **set a dashboard
+password**; then open `http://<NAS-IP>:8181` and log in. It is **LAN-only** (plain HTTP, do not
+port-forward it) and **read-only** (it only shows status, never changes anything). It runs
+separately from Samba: stopping or crashing it never affects your shares
+(`modernsmb.sh ui-stop` / `ui-start`).
+
 ## Managing it later
 
 Run these on the NAS (as root):
@@ -148,3 +163,24 @@ This removes `/volume1/@modernsmb` and the boot hook and restores stock Samba.
 | Locked out after a bad reboot | The watchdog should have restored stock automatically. Worst case: remove the drive, mount elsewhere, delete `/volume1/@modernsmb/` and `/volume1/startup/S99modernsmb`. |
 
 Logs: `/volume1/@modernsmb/var/modernsmb.log`.
+
+---
+
+## License & disclaimer — no warranty, no liability, use at your own risk
+
+This project is free and open source under the **MIT License**. Being open source and free
+does **not** mean the authors take any ownership, guarantee, or responsibility for what
+happens when you use it. It is provided **as-is, for educational and voluntary personal use
+by anyone who chooses to run it.**
+
+- **No warranty of any kind** — not of fitness, safety, correctness, or that it will work on
+  your hardware at all.
+- **No liability and no responsibility whatsoever** for any issue, bug, data loss, downtime,
+  hardware failure, security incident, or any other damage or loss — direct or indirect —
+  arising in any way from the use of this software or these instructions.
+- Nobody is forcing this on anyone. You install and run it **entirely by your own choice, on
+  your own terms, at your own will, and at your own risk.** If anything goes wrong as a
+  result of using it, that is solely your responsibility.
+
+If you do not accept these terms, do not use this project. See [`LICENSE`](LICENSE) and the
+[`README.md`](README.md) for the full text.

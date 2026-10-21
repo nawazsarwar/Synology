@@ -9,6 +9,13 @@ All binaries are **statically linked (musl)** and were cross-compiled for PowerP
 verified under QEMU (`qemu-ppc -r 2.6.24`): `smbd -V` / `nmbd -V` / `testparm` report
 **Version 4.15.13**, with `vfs_fruit`/`catia`/`streams_xattr` and GnuTLS (SMB3 crypto) built in.
 
+A companion **web monitoring dashboard** (own port `:8181`, read-only, LAN-only) ships as an
+optional installer module. It runs alongside the stock DSM UI (which it never touches) and
+shows the real-time health of the box — including the modern Samba/SSH stack the stock UI
+can't see. See [Monitoring dashboard](#monitoring-dashboard-web-ui) below.
+
+![DS207 modern monitoring dashboard](../../documents/images/DS207-modern-interface.png)
+
 ## What's here
 
 | File | Purpose |
@@ -66,6 +73,54 @@ The DS207 has **64 MB RAM (fixed)** and a 266 MHz single-core PPC. Static Samba 
 (smbd ≈ 24 MB on disk; RSS ≈ 15–25 MB per worker), so expect **~2–3 concurrent SMB sessions**.
 `smb.conf` is tuned for low memory (`max smbd processes`, no winbind/AD/printing). This is a
 working prototype; a round-2 pass could shrink it further (`-Os`, fewer modules) if needed.
+
+## Monitoring dashboard (web UI)
+
+An optional, read-only monitoring dashboard that runs on its own port (`:8181`) alongside the
+stock DSM UI. It is a reversible overlay with the same safety guarantees as the rest of the
+project: the stock UI on `:5000` is never modified, and `uninstall` removes it cleanly.
+
+**Architecture (privilege-separated).** Two small static PPC binaries plus a static single-page
+app:
+
+- `collector` — runs as root, **never binds a socket**. Loops ~2 s, parses `/proc` and a fixed
+  whitelist of tools (`smartctl`, `mdstat`, `smbstatus`, `netstat`), and writes JSON snapshots
+  to `ui/state/*.json` with atomic rename. SMART is cached on a 5-minute cadence.
+- `uiserver` — drops privilege to `nobody`, listens on `:8181`. Serves the static SPA and the
+  pre-written JSON snapshots under `GET /api/*`. Never execs a command, never reads `/proc`,
+  never has root — a compromise yields only read-only monitoring JSON. Password login
+  (salted SHA-256, cookie session, rate-limited); path-traversal-safe file serving.
+- **Vue 3 SPA** (built with Vite on the dev machine; only static `dist/` ships — the NAS never
+  runs Node). Built on a self-contained design system (design tokens + component library +
+  app shell), self-hosted fonts (no CDN; LAN-only), live charts via uPlot, a fluid CSS-grid
+  layout that reflows 4→3→2→1 columns by viewport with no JavaScript, and a dark / light / auto
+  theme switcher. Live tiles poll `/api` (~2 s light metrics; SMART/services on their cadence).
+
+The dashboard shows: CPU %, memory, load average, uptime, model/kernel; per-interface network
+throughput and disk I/O (live graphs); per-volume storage and RAID/array health; per-disk SMART
+health + temperature; connected SMB/SSH sessions and open files; service status with **version
+and port** (smbd, nmbd, afpd, ssh); and a beyond-LAN (WAN) connection indicator.
+
+**Install / reach it.**
+
+```
+sudo sh install.sh ui          # install the dashboard module (prompts for a dashboard password)
+```
+
+Then open `http://<nas-ip>:8181` in a browser on the LAN and sign in (default username
+`admin`, password set at install). Control and status:
+
+```
+sh /volume1/@modernsmb/bin/modernsmb.sh ui-start      # start collector + uiserver
+sh /volume1/@modernsmb/bin/modernsmb.sh ui-stop
+sh /volume1/@modernsmb/bin/modernsmb.sh status
+```
+
+It is **read-only** (v1 performs no control actions) and **LAN-only** (plain HTTP; do not
+port-forward). A dashboard crash never affects Samba — there is no shared watchdog and no
+auto-revert coupling. The dashboard is the first phase of a front-end intended to grow,
+phase by phase, toward a fuller control panel; the own-port, overlay, stock-untouched design
+is chosen so it can grow without ever risking the stock DSM UI.
 
 ## Reproducing the build
 
