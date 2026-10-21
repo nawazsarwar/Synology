@@ -22,6 +22,11 @@ MODULES (menu options)
                     DSM's own SSH on port 22 is left untouched, so you cannot be locked out.
   3) Modern curl  - self-contained curl 8.5 + mbedTLS (TLS 1.2); does not touch system curl.
                     Lets the NAS fetch from modern HTTPS sites (GitHub etc).
+  4) Dashboard    - read-only web monitoring UI on port 8181 (install with: sh install.sh ui).
+                    Shows live CPU/RAM/load, network + disk I/O, storage/RAID, SMART, sessions
+                    and service versions. Runs ALONGSIDE the stock DSM UI (port 5000), which is
+                    never touched. Open http://<nas-ip>:8181 and sign in (set a password at
+                    install). LAN-only, plain HTTP; a UI crash never affects Samba.
 
 HOW TO INSTALL
   1. Copy this whole folder onto the NAS (e.g. into a shared folder via

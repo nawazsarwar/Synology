@@ -41,7 +41,7 @@ describe('auth gate', () => {
     client.login.mockResolvedValue(true)
     const w = await mountApp()
     await submit(w, 'secret')
-    expect(client.login).toHaveBeenCalledWith('secret')
+    expect(client.login).toHaveBeenCalledWith('admin', 'secret')
     expect(w.find('form.login').exists()).toBe(false)
     expect(w.find('.desktop').exists()).toBe(true)
     expect(store.startPolling).toHaveBeenCalledTimes(1)

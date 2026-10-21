@@ -1,6 +1,7 @@
 #include "parse_services.h"
 #include "json.h"
 #include <string.h>
+#include <stdio.h>
 
 int build_services_json(const svc_probe *probes, int n, char *out, size_t outlen) {
   int i, rc;
@@ -19,6 +20,13 @@ int build_services_json(const svc_probe *probes, int n, char *out, size_t outlen
       jb_kstr(&b, "version", probes[i].version);
     } else {
       jb_raw(&b, ",\"version\":null");
+    }
+    if (probes[i].port > 0) {
+      char pb[32];
+      snprintf(pb, sizeof pb, ",\"port\":%d", probes[i].port);
+      jb_raw(&b, pb);
+    } else {
+      jb_raw(&b, ",\"port\":null");
     }
     jb_raw(&b, "}");
   }

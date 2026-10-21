@@ -14,11 +14,12 @@ describe('Desktop', () => {
     const w = mount(Desktop)
     expect(w.findAll('.win').length).toBe(11)
   })
-  it('flags degraded RAID in the taskbar', () => {
+  it('flags degraded RAID in the top-bar annunciator', () => {
     const s = useMetricsStore()
     s.storage = { volumes: [], arrays: [{ name: 'md0', level: 'raid1', state: 'degraded' }] }
     const w = mount(Desktop)
-    expect(w.find('.pill.bad').exists()).toBe(true)
+    expect(w.find('.annunciator.is-bad').exists()).toBe(true)
+    expect(w.text()).toContain('RAID degraded')
     expect(w.text()).toContain('Degraded')
   })
 })

@@ -1,6 +1,6 @@
 # DS207 Modernization — Project Log & Documentation
 
-**Last updated:** 2026-10-20
+**Last updated:** 2026-10-21
 **Status:** Prototype built and deployed to hardware; deployment caused an out-of-memory (OOM) condition on the 64 MB device; recovering the NAS by reinstalling stock DSM via the reset button (Mode 2). Core finding: **Samba 4 as-built is too heavy for 64 MB RAM.**
 
 This document is the running trail of the whole effort. Companion documents:
@@ -503,3 +503,50 @@ dashboard, installed as installer option 7 / `install.sh ui`, independent of Sam
 - Boot persistence was verified by inspection (S99modernsmb -> `modernsmb.sh boot` ->
   backgrounded `ui_start`, no watchdog) and by running `ui-start`; the box was NOT
   power-cycled. A real power-cycle is the recommended final user check.
+
+---
+
+## Trial 6 — Dashboard front-end redesign (2026-10-21)
+
+Trial 5 proved the dashboard's architecture (collector + uiserver + Vue SPA + installer
+module), but its front-end was a plain draggable-tile layout that the owner judged unpolished
+and not fit to be the enduring baseline for the later phases. This trial is the front-end
+redesign — the visual and structural baseline all future phases build on — built, deployed to
+the real DS207, and verified live.
+
+![DS207 modern monitoring dashboard — as shipped](images/DS207-modern-interface.png)
+
+**What changed.**
+- **Design system, not a skin.** The SPA was restructured onto a self-contained design system:
+  design tokens (palette, type scale, spacing, radius, elevation, motion), a base layer, a
+  shared component stylesheet, a dependency-free primitive library (Icon, Led, Badge, Stat,
+  Gauge, Meter, Sparkline) and an app-shell layer (TopBar, Dock, theme controller, widget
+  registry). This is the baseline Phases 2–3 extend without re-designing.
+- **Fluid CSS grid replaced draggable tiles.** The freeform drag/absolute model fought
+  responsiveness; the layout is now a native CSS grid that reflows 4 → 3 → 2 → 1 columns by
+  viewport width with no JavaScript and no horizontal overflow. (Per-browser layout persistence
+  dropped for v1; drag-reorder can return later.)
+- **Dark / light / auto theme switcher** (user menu), resolved before first paint, follows the
+  OS on auto, persisted in `localStorage`.
+- **Login redesigned + username field** (default `admin`), self-hosted fonts (Archivo + IBM
+  Plex Mono, no CDN). Multi-user auth backend still deferred — the username is cosmetic in v1
+  (single shared password).
+- **Services tile shows version + port** (smbd/nmbd `4.15.13`, afpd, ssh `Dropbear v2022.83`
+  with its port); `nmbd` inherits smbd's Samba version; the dropbear probe calls
+  `dropbearmulti dropbear -V`.
+- **`uiserver` no longer serves a hardcoded HTML login.** It now serves the SPA publicly and
+  gates only `/api/*` (401 unauth); the Vue SPA renders its own login and POSTs `/api/login`.
+  (The baked-in C login was the bare page the owner rejected, and it had been masking the
+  redesigned SPA login entirely.)
+
+**Verified live (192.168.1.11:8181).** Real-time CPU/mem/load tick ~2 s; network and disk-I/O
+sparklines scroll; responsive reflow confirmed at 1920 / 1512 / 1300 / 1000 / 600 px; all three
+themes confirmed in-browser; services show live version + port. 28 Vue component tests + the
+full native C suite pass. A www file-permission fix was applied on the box (`chmod -R a+rX`;
+the `nobody` server could not read owner-mode-0700 uploads).
+
+**Still open.** Multi-user auth backend (username cosmetic for now); the shippable installer
+must `chmod -R a+rX` the staged `www/` and bundle the redesigned binaries + SPA (live box fixed,
+installer payload update pending). Documentation updated: `workspace/build/README.md` gains a
+Monitoring-dashboard section with the screenshot; `documents/WEBUI_DASHBOARD_DESIGN.md` gains an
+As-implemented addendum.

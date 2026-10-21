@@ -34,11 +34,12 @@ static const char *ui_dir(void) {
 }
 
 char *collector_exec_tool(tool_id id) {
-  char smbstatus[256], conf[256], smbd[256];
+  char smbstatus[256], conf[256], smbd[256], dbear[256];
   char *argv[6]; int fd[2]; pid_t pid; char *buf; size_t len = 0; ssize_t r; int st;
   if (snprintf(smbstatus, sizeof smbstatus, "%s/bin/smbstatus", ui_dir()) >= (int)sizeof smbstatus ||
       snprintf(conf, sizeof conf, "%s/etc/smb.conf", ui_dir()) >= (int)sizeof conf ||
-      snprintf(smbd, sizeof smbd, "%s/sbin/smbd", ui_dir()) >= (int)sizeof smbd)
+      snprintf(smbd, sizeof smbd, "%s/sbin/smbd", ui_dir()) >= (int)sizeof smbd ||
+      snprintf(dbear, sizeof dbear, "%s/ssh/dropbearmulti", ui_dir()) >= (int)sizeof dbear)
     return NULL;   /* overlong COLLECTOR_UI_DIR: fail loudly, don't truncate */
   switch (id) {   /* THE whitelist: fixed argv only */
     case TOOL_DF:        argv[0]="df"; argv[1]=NULL; break;
@@ -48,7 +49,8 @@ char *collector_exec_tool(tool_id id) {
     case TOOL_NETSTAT:   argv[0]="netstat"; argv[1]="-ltn"; argv[2]=NULL; break;
     case TOOL_PS:        argv[0]="ps"; argv[1]="w"; argv[2]=NULL; break;
     case TOOL_VER_SMBD:  argv[0]=smbd; argv[1]="-V"; argv[2]=NULL; break;
-    case TOOL_VER_SSH:   argv[0]="dropbear"; argv[1]="-V"; argv[2]=NULL; break;
+    /* our Dropbear ships as the multi-call binary; invoke the dropbear applet */
+    case TOOL_VER_SSH:   argv[0]=dbear; argv[1]="dropbear"; argv[2]="-V"; argv[3]=NULL; break;
     default: return NULL;
   }
   if (pipe(fd) != 0) return NULL;
@@ -190,8 +192,11 @@ static int snap_services(const char *dir, char *out) {
     up = (ps && strstr(ps, S[i].proc)) || (ns && strstr(ns, port));
     ver[i] = (up && S[i].ver != TOOL_COUNT) ? run_tool(S[i].ver) : NULL;
     if (ver[i]) { char *e = strpbrk(ver[i], "\r\n"); if (e) *e = 0; if (!*ver[i]) { free(ver[i]); ver[i] = NULL; } }
-    p[i].name = S[i].name; p[i].up = up; p[i].version = ver[i];
+    p[i].name = S[i].name; p[i].up = up; p[i].version = ver[i]; p[i].port = S[i].port;
   }
+  /* nmbd is part of the same Samba build as smbd: share its version string
+     (aliases ver[0]; freed once below, never via p[1]). */
+  if (N > 1 && p[1].up && !p[1].version && p[0].version) p[1].version = p[0].version;
   n = build_services_json(p, N, out, MAXOUT);
   for (i = 0; i < N; i++) free(ver[i]);
   free(ps); free(ns);

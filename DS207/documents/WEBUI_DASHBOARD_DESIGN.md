@@ -1,6 +1,8 @@
 # Design — DS207 Modern Monitoring Dashboard ("desktop-OS" landing)
 
-Status: FINAL — awaiting owner approval to proceed to the implementation plan · Date: 2026-10-21
+Status: IMPLEMENTED & DEPLOYED (Phase 1) · Date: 2026-10-21 · see the
+[As-implemented](#as-implemented-2026-10-21) addendum for how the shipped UI differs from this
+original design.
 
 ## Intent & why
 
@@ -191,7 +193,67 @@ without ever risking the stock UI, and so we can stop at any phase if it's enoug
 - Growth is opt-in and incremental; Phase 1 stands on its own and the stock DSM UI remains the
   fallback for everything not yet built.
 
+## As-implemented (2026-10-21)
+
+Phase 1 is built, deployed to the real DS207, and verified serving live data at
+`http://<nas-ip>:8181`. The architecture above shipped as designed (privilege-separated
+`collector` + `uiserver` + static Vue SPA, own port, reversible overlay, stock UI untouched).
+This section records where the shipped UI **departs from** the original design and what was
+added during implementation.
+
+![DS207 modern monitoring dashboard — as shipped](images/DS207-modern-interface.png)
+
+### Departures from the original design
+
+- **Fluid CSS grid replaced the draggable, rearrangeable tiles** (Goal 2). The freeform
+  drag/absolute-position model fought responsiveness: a hand-rolled layout could not reflow
+  cleanly across viewport widths. The shipped layout is a native CSS grid
+  (`repeat(auto-fill, minmax(min(100%, 330px), 1fr))`) that reflows **4 → 3 → 2 → 1 columns**
+  purely by viewport width — no JavaScript layout math, no breakpoints, no horizontal overflow.
+  Per-browser `localStorage` layout persistence is therefore dropped for v1; drag-to-reorder
+  can return later as an enhancement on top of the grid.
+- **The `uiserver` no longer serves its own login page.** Early builds had a hardcoded HTML
+  login baked into the C server that gated the whole app; it was the bare, unstyled page the
+  owner rejected. The server now serves the SPA publicly and gates only `/api/*` (401 when
+  unauthenticated); the **Vue SPA renders its own login** and POSTs to `/api/login`.
+
+### Added during implementation (beyond the original design)
+
+- **An enduring design system**, not a one-off skin — chosen because this front-end is meant
+  to grow across phases (see Roadmap) and the baseline must not be re-designed each phase:
+  - design tokens (`src/design/tokens.css`): palette, type scale, spacing, radius, elevation,
+    motion, z-layers, with a full light-theme override block;
+  - a base layer (reset, wallpaper, a11y, scrollbars) and a shared component stylesheet;
+  - a dependency-free primitive library (`src/ui/`: Icon, Led, Badge, Stat, Gauge, Meter,
+    Sparkline) and an app-shell layer (`src/os/`: TopBar, Dock, theme controller, widget
+    registry) that the tiles are composed from.
+- **Dark / light / auto theme switcher** (in the user menu), resolved before first paint and
+  following the OS while on auto; persisted in `localStorage`.
+- **A username field** on login (default `admin`), sent to `/api/login`, so the UI is
+  multi-user-capable in appearance. *Backend auth still checks a single shared password in v1 —
+  the username is cosmetic until a real multi-user backend lands (deferred).*
+- **Self-hosted fonts** (Archivo + IBM Plex Mono, woff2, ~65 KB) — no CDN, consistent with the
+  LAN-only stance.
+- **Services tile shows version + port** per service (e.g. `smbd 4.15.13 · port 445`,
+  `ssh Dropbear v2022.83 · port 2222`); `nmbd` inherits smbd's Samba version, and the dropbear
+  version probe calls `dropbearmulti dropbear -V` (it is not on `PATH` as `dropbear`).
+
+### Verified live
+
+Real-time updates confirmed on the box (CPU/mem/load tick ~2 s; network and disk-I/O
+sparklines scroll); responsive reflow confirmed at 1920 / 1512 / 1300 / 1000 / 600 px; all
+three themes confirmed in-browser; services show live version + port. 28 Vue component tests
+plus the full native C suite pass.
+
+### Still open / deferred
+
+- Multi-user auth backend (username currently cosmetic — single shared password).
+- The shippable **installer** must `chmod -R a+rX` the staged `www/` (the `nobody` server must
+  read it) and bundle the redesigned binaries + SPA; the live box is fixed, the installer
+  payload update is pending.
+- WAN byte-totals (v1 ships connection + public-IP flag, option (b) above).
+
 ## Size
 
 Project (multi-component: a new C server, a Samba tool rebuild, a Vue app, installer wiring).
-→ A written plan follows this design once approved (superpowers:writing-plans).
+→ Built and deployed; Phase 1 complete.

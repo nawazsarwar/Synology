@@ -34,12 +34,14 @@ export async function getJSON(path) {
   return res.json()
 }
 
-export async function login(password) {
+// Returns true on success. Sends username alongside the password so the server
+// can support multiple accounts; a single-account server may ignore the name.
+export async function login(username, password) {
   const res = await fetch('api/login', {
     method: 'POST',
     credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password })
+    body: JSON.stringify({ username, password })
   })
   return res.ok
 }

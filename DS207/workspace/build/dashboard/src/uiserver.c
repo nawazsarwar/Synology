@@ -116,17 +116,6 @@ static time_t login_last_fail = 0;
 
 int ui_body_ok(long cl) { return cl <= UI_MAX_BODY; }
 
-static const char LOGIN_HTML[] =
-  "<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
-  "<title>DS207 Login</title></head><body style=\"font-family:sans-serif;max-width:20em;margin:4em auto\">"
-  "<h3>DS207 Dashboard</h3><form id=f><input id=p type=password placeholder=\"password\" autofocus style=\"width:100%\">"
-  "<p><button>Sign in</button> <span id=m style=\"color:#b00\"></span></p></form>"
-  "<script>document.getElementById('f').onsubmit=function(e){e.preventDefault();"
-  "fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},"
-  "body:JSON.stringify({password:document.getElementById('p').value})}).then(function(r){"
-  "if(r.ok)location.href='/';else document.getElementById('m').textContent=r.status==429?'Too many attempts':'Wrong password';});};"
-  "</script></body></html>";
-
 static int send_resp(int fd, int st, const char *reason, const char *ctype, const char *extra,
                      const char *body) {
   char hdr[512]; int hl;
@@ -216,11 +205,13 @@ int ui_handle(const char *base, const http_req *q, const char *body, size_t blen
   }
   authed = auth_cookie_ok(q->cookie);
   if (!authed) {
+    /* Only the data API is protected. The static SPA shell (HTML/JS/CSS/fonts)
+       is public: it renders its own login and authenticates via POST api/login.
+       No secrets live in the shell; every private datum stays behind the cookie
+       (the api 401 just below), so serving the app unauthenticated is safe. */
     if (strncmp(q->dpath, "/api", 4) == 0 || strncmp(q->path, "/api", 4) == 0)
       return send_resp(fd, 401, "Unauthorized", "application/json", NULL, "{\"error\":\"unauthorized\"}");
-    if (strcmp(q->method, "GET") == 0 && (strcmp(q->dpath, "/") == 0 || strcmp(q->dpath, "/index.html") == 0))
-      return send_resp(fd, 200, "OK", "text/html; charset=utf-8", NULL, LOGIN_HTML);
-    return send_resp(fd, 302, "Found", "text/plain", "Location: /\r\n", "Found");
+    return ui_serve(base, q, fd);
   }
   if (strcmp(q->dpath, "/api/logout") == 0 && strcmp(q->method, "POST") == 0) {
     char sid[AUTH_TOKEN_HEX + 8];

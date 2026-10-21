@@ -1,9 +1,13 @@
 <script setup>
-import { pct } from '../../fmt.js'
-defineProps({ busy: { type: Number, default: NaN } })
+import { computed } from 'vue'
+import Gauge from '../../ui/Gauge.vue'
+import { colorFor } from '../../ui/status.js'
+const props = defineProps({ busy: { type: Number, default: NaN } })
+const color = computed(() => colorFor(props.busy, 70, 90))
 </script>
 <template>
-  <div class="big">{{ pct(busy) }}</div>
-  <div class="bar"><i :style="{ width: (Number.isFinite(busy) ? busy : 0) + '%' }"></i></div>
-  <div class="muted">CPU busy</div>
+  <div class="v-center">
+    <Gauge :value="busy" :color="color" unit="%" label="busy" :size="124" />
+    <div class="cap">single core · PPC 603e</div>
+  </div>
 </template>
