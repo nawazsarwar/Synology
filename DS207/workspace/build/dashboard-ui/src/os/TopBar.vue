@@ -27,6 +27,11 @@ function onDocClick(e) { if (!e.target.closest('.userchip') && !e.target.closest
 onMounted(() => { tick(); timer = setInterval(tick, 15000); document.addEventListener('click', onDocClick) })
 onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('click', onDocClick) })
 
+// Link out to the stock DSM 3.1 control panel (served by the untouched Apache on
+// :5000). Built from the host the dashboard itself is served from, opened in a new tab.
+const dsmHost = (typeof location !== 'undefined' && location.hostname) || 'localhost'
+const dsmUrl = `http://${dsmHost}:5000`
+
 const initial = () => (props.user ? props.user[0].toUpperCase() : '•')
 const THEME_ICON = { dark: 'activity', light: 'thermometer', auto: 'clock' }
 const THEME_LABEL = { dark: 'Dark', light: 'Light', auto: 'Auto' }
@@ -48,6 +53,12 @@ const THEME_LABEL = { dark: 'Dark', light: 'Light', auto: 'Auto' }
     </span>
 
     <span class="topbar__spacer"></span>
+
+    <a class="dsm-link" :href="dsmUrl" target="_blank" rel="noopener noreferrer"
+       title="Open the classic DSM 3.1 control panel (port 5000) in a new tab">
+      <Icon name="server" :size="14" /><span class="dsm-link__txt">DSM 3.1</span>
+      <Icon name="arrowRight" :size="13" class="dsm-link__out" />
+    </a>
 
     <span class="clock"><Icon name="clock" :size="14" /><span>{{ clock }}</span></span>
 
@@ -84,6 +95,17 @@ const THEME_LABEL = { dark: 'Dark', light: 'Light', auto: 'Auto' }
 
 <style scoped>
 .annunciator__txt { overflow: hidden; text-overflow: ellipsis; }
+
+.dsm-link {
+  flex: none; display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px var(--sp-3); border: 1px solid var(--c-line); border-radius: var(--r-pill);
+  background: var(--c-surface-2); color: var(--c-ink-dim);
+  font-size: var(--fs-sm); font-weight: 600; text-decoration: none; white-space: nowrap;
+  transition: color var(--motion-fast) var(--ease), border-color var(--motion-fast) var(--ease), background var(--motion-fast) var(--ease);
+}
+.dsm-link:hover { color: var(--c-ink); border-color: var(--c-line-strong); background: var(--c-surface-3); }
+.dsm-link__out { opacity: 0.6; transform: rotate(-45deg); }
+@media (max-width: 620px) { .dsm-link__txt, .dsm-link__out { display: none; } }
 .menu__label { font-size: var(--fs-xs); font-weight: 600; color: var(--c-ink-mute); padding: 2px var(--sp-3); margin-top: var(--sp-1); }
 .theme-switch { display: flex; gap: 4px; padding: 4px var(--sp-2) var(--sp-2); }
 .theme-opt {
